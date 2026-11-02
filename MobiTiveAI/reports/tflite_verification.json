@@ -1,0 +1,17 @@
+{
+  "model": "mobitive_gru_float32",
+  "keras_accuracy": 0.9821428571428571,
+  "tflite_accuracy": 0.9821428571428571,
+  "same_predictions": 112,
+  "total_samples": 112,
+  "max_probability_difference": 1.1920928955078125e-07,
+  "mean_probability_difference": 4.0970760117886584e-09,
+  "input_shape": [
+    1,
+    1,
+    2915
+  ],
+  "input_dtype": "<class 'numpy.float32'>",
+  "output_dtype": "<class 'numpy.float32'>",
+  "model_size_bytes": 4684840
+}

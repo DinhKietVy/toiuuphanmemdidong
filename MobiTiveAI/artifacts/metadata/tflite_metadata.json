@@ -1,0 +1,20 @@
+{
+  "model_name": "MobiTive GRU",
+  "model_format": "TensorFlow Lite",
+  "input_shape": [
+    1,
+    1,
+    2915
+  ],
+  "input_dtype": "float32",
+  "output_shape": [
+    1,
+    2
+  ],
+  "output_classes": {
+    "0": "Benign",
+    "1": "Malware"
+  },
+  "feature_dictionary": "feature_dictionary.json",
+  "representation": "binary_presence"
+}

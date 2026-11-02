@@ -1,0 +1,32 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Raw APK dataset (large binary files - download via scripts)
+data/raw/benign/*.apk
+data/raw/malware/*.apk
+
+# Processed intermediate files (regenerated from raw data)
+data/processed/extracted/
+data/processed/dataset/*.npy
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

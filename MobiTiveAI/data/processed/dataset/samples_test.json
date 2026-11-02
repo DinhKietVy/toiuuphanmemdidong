@@ -1,0 +1,786 @@
+[
+  {
+    "file": "0150f08387032ed3d5a5952dbe13646bff2878f01c2c9267e6dc32ecb8747003.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "ch.blinkenlights.android.vanilla",
+    "sha256": "0150f08387032ed3d5a5952dbe13646bff2878f01c2c9267e6dc32ecb8747003"
+  },
+  {
+    "file": "028a48de489c4445c381ad643044e9cad4834e4bda1b74b68875f56068d1a56a.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "us.spotco.ir_remote",
+    "sha256": "028a48de489c4445c381ad643044e9cad4834e4bda1b74b68875f56068d1a56a"
+  },
+  {
+    "file": "0626177f888560db68c9bb1bb745c6b53ec37e0a6005ad44a49c9b001e3826d8.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.cryptosafe.app",
+    "sha256": "0626177f888560db68c9bb1bb745c6b53ec37e0a6005ad44a49c9b001e3826d8"
+  },
+  {
+    "file": "078f55b72624cff1e159f9b29c7d64b74741a010ae435d36f54ab25ad670e752.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.jpi59.ethichandoff",
+    "sha256": "078f55b72624cff1e159f9b29c7d64b74741a010ae435d36f54ab25ad670e752"
+  },
+  {
+    "file": "148c08f8cc062503814096de18b187a62c14f2aa9324f6bba42b787794dc328a.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.shapeshed.aerial",
+    "sha256": "148c08f8cc062503814096de18b187a62c14f2aa9324f6bba42b787794dc328a"
+  },
+  {
+    "file": "14dddf27df19d042e2af359627cdee5bdda1bdd55fc2cfb6ad3697cafcf4baf0.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "m.co.rh.id.a_flash_deck",
+    "sha256": "14dddf27df19d042e2af359627cdee5bdda1bdd55fc2cfb6ad3697cafcf4baf0"
+  },
+  {
+    "file": "1cee0d6f923470f48b186c2de116c7cddf5cc6dae0f1092ff9ef0c65e9a3464b.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "app.bematist.public",
+    "sha256": "1cee0d6f923470f48b186c2de116c7cddf5cc6dae0f1092ff9ef0c65e9a3464b"
+  },
+  {
+    "file": "1d0579fd5fbadadbea32e709de64043423d1af1f8eed4e4cecd79691b08864ee.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "de.jepfa.hyle_x",
+    "sha256": "1d0579fd5fbadadbea32e709de64043423d1af1f8eed4e4cecd79691b08864ee"
+  },
+  {
+    "file": "22edf720655c011be57c376336ab8eda4981f4acdccc6681256213e983f431a4.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.eneko.hexcolortimewallpaper",
+    "sha256": "22edf720655c011be57c376336ab8eda4981f4acdccc6681256213e983f431a4"
+  },
+  {
+    "file": "256dfa7d4041daa552dc104d61144e6ea44945f7400d94b076f8555c34f553b2.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.quaap.launchtime",
+    "sha256": "256dfa7d4041daa552dc104d61144e6ea44945f7400d94b076f8555c34f553b2"
+  },
+  {
+    "file": "295993115787483d6557478f0b99139220a3783f10598035e76684e423b53c01.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "dev.fabik.bluetoothhid",
+    "sha256": "295993115787483d6557478f0b99139220a3783f10598035e76684e423b53c01"
+  },
+  {
+    "file": "29dc0d47b7cae38d4c4dcd73b6dbe229225b5307bc62044c7bbb8e9541aee0c1.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.filestech.sms",
+    "sha256": "29dc0d47b7cae38d4c4dcd73b6dbe229225b5307bc62044c7bbb8e9541aee0c1"
+  },
+  {
+    "file": "29e43adebe3fb20a6b86e5b82fbd674525b19c74b269a3c1d1a4aca3773a6139.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.abhinavxt.debforge",
+    "sha256": "29e43adebe3fb20a6b86e5b82fbd674525b19c74b269a3c1d1a4aca3773a6139"
+  },
+  {
+    "file": "2aeb208f208b02c129549e421c0c08e0e0d1e08844214b9f227425c33fd70abe.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.codeberg.nykula.sapfir",
+    "sha256": "2aeb208f208b02c129549e421c0c08e0e0d1e08844214b9f227425c33fd70abe"
+  },
+  {
+    "file": "2cc18a00bcef3b8d78fae598b0b746345587885df947095ee5795c1b195fa6c4.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.anisync.android",
+    "sha256": "2cc18a00bcef3b8d78fae598b0b746345587885df947095ee5795c1b195fa6c4"
+  },
+  {
+    "file": "2e2aac33dbd7bfecfac1d824efddcc1f4556e8f8f692dd854f6ae8077be8233b.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "negativedensity.techahashi",
+    "sha256": "2e2aac33dbd7bfecfac1d824efddcc1f4556e8f8f692dd854f6ae8077be8233b"
+  },
+  {
+    "file": "2f0a8b7dbc2a48e3521f0d7f0b34fe55210c2c98a4a3358ef067b01fc09d8a99.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "app.ladefuchs.android",
+    "sha256": "2f0a8b7dbc2a48e3521f0d7f0b34fe55210c2c98a4a3358ef067b01fc09d8a99"
+  },
+  {
+    "file": "30564acbf80fbf4945643d8164b037864cc2bae921e36f4dd11781f13ad149b0.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.jemcik.jemrec",
+    "sha256": "30564acbf80fbf4945643d8164b037864cc2bae921e36f4dd11781f13ad149b0"
+  },
+  {
+    "file": "315fcf9674d5dbee42635391f5f9627a1cba75f6057adbdb508c272a45f15245.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.seafile.seadroid2",
+    "sha256": "315fcf9674d5dbee42635391f5f9627a1cba75f6057adbdb508c272a45f15245"
+  },
+  {
+    "file": "3303196ae1543f47bfa83eddd8902e9ab158cc53d776f54b26ceec912ecb4052.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "ua.gardenapple.trylbry",
+    "sha256": "3303196ae1543f47bfa83eddd8902e9ab158cc53d776f54b26ceec912ecb4052"
+  },
+  {
+    "file": "3634dfc04ec89bb03be2a1ec3a33956f3c51834405aea392e3657c67336761bc.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "net.osmtracker",
+    "sha256": "3634dfc04ec89bb03be2a1ec3a33956f3c51834405aea392e3657c67336761bc"
+  },
+  {
+    "file": "38a6f7aa3874bdacd4e0f2a167386c338c34bf1fcc4d57eb70c222c2272f5250.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "eve.game.tracker",
+    "sha256": "38a6f7aa3874bdacd4e0f2a167386c338c34bf1fcc4d57eb70c222c2272f5250"
+  },
+  {
+    "file": "3b3d1b6e7113af817edb8322489139f6a6187b46cf7c119eaace046d0d8241cb.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "by.yauhenl.gardine",
+    "sha256": "3b3d1b6e7113af817edb8322489139f6a6187b46cf7c119eaace046d0d8241cb"
+  },
+  {
+    "file": "3cb274f869f777c8b420fd55a822eca72e11e22906161b07accd19b5c8be7b36.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "de.baumann.browser",
+    "sha256": "3cb274f869f777c8b420fd55a822eca72e11e22906161b07accd19b5c8be7b36"
+  },
+  {
+    "file": "40e06b9a0df083a5ced42e82c15e69807d6b224ff12fef52e661fff0c4f3d7b8.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.splitsmart",
+    "sha256": "40e06b9a0df083a5ced42e82c15e69807d6b224ff12fef52e661fff0c4f3d7b8"
+  },
+  {
+    "file": "42f729ea1f48639633259638f9901a2cb60cf7613acd7ffcd65024af3004c8f8.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.y20k.escapepod",
+    "sha256": "42f729ea1f48639633259638f9901a2cb60cf7613acd7ffcd65024af3004c8f8"
+  },
+  {
+    "file": "434e4eaa77c57c5bb3f193e4265c8ea933dc3dd52b84a08cec4807dcb486e009.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.zell_mbc.medilog.fdroid",
+    "sha256": "434e4eaa77c57c5bb3f193e4265c8ea933dc3dd52b84a08cec4807dcb486e009"
+  },
+  {
+    "file": "47a7bd1706e47bc08fc564d823781994a21e1cb9e7d82c0e35155bffc965c8a8.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.anysoftkeyboard.languagepack.catalan",
+    "sha256": "47a7bd1706e47bc08fc564d823781994a21e1cb9e7d82c0e35155bffc965c8a8"
+  },
+  {
+    "file": "495afb3201d57acbe204cbbe986877c7394b1c20bb66814069e0e26b41407c14.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "dev.otherworld.shoppinglist",
+    "sha256": "495afb3201d57acbe204cbbe986877c7394b1c20bb66814069e0e26b41407c14"
+  },
+  {
+    "file": "4dd2a2bb690874d258ca3777722c52b331de8c5605158a4bac1024e8dfff9a43.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "xyz.crucitti.friendalert",
+    "sha256": "4dd2a2bb690874d258ca3777722c52b331de8c5605158a4bac1024e8dfff9a43"
+  },
+  {
+    "file": "500f83f492ef46a28334fba815b31179b7ea8a4de040b6d68bef8a42783b69bb.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.andebugulin.nfcguard",
+    "sha256": "500f83f492ef46a28334fba815b31179b7ea8a4de040b6d68bef8a42783b69bb"
+  },
+  {
+    "file": "551a6cb4fe320c9fd74326247459d2971622c632fca8d055c2431cf6da5bca59.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.jimvixx.smsecure",
+    "sha256": "551a6cb4fe320c9fd74326247459d2971622c632fca8d055c2431cf6da5bca59"
+  },
+  {
+    "file": "578c7ac201b8225871a3446148659fdcc4fb13c28cc9bda5e1273fc9d27aa1b4.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "de.cryptobitch.muelli.vouchercalc",
+    "sha256": "578c7ac201b8225871a3446148659fdcc4fb13c28cc9bda5e1273fc9d27aa1b4"
+  },
+  {
+    "file": "5c7bed6d097cffb24e77cbacc43d9d4d5049c814714144deb4e65c817d447582.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "ru.lksh.beret",
+    "sha256": "5c7bed6d097cffb24e77cbacc43d9d4d5049c814714144deb4e65c817d447582"
+  },
+  {
+    "file": "5e0b5f7e76da712e7aecf4fdd7e7d3f98f8b7aa97558db74248a30b356944434.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.sufficientlysecure.ical",
+    "sha256": "5e0b5f7e76da712e7aecf4fdd7e7d3f98f8b7aa97558db74248a30b356944434"
+  },
+  {
+    "file": "63730ec2ac320ecb31004c07e60c30f374ab20ad8041147720a967bb2aafd5fb.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.ecos.logic.flip_a_coin",
+    "sha256": "63730ec2ac320ecb31004c07e60c30f374ab20ad8041147720a967bb2aafd5fb"
+  },
+  {
+    "file": "65786e1faa7c985aa8075b09bfd6dfddce9f725f1d5f0f343a268f0b58810674.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "app.veil.veil",
+    "sha256": "65786e1faa7c985aa8075b09bfd6dfddce9f725f1d5f0f343a268f0b58810674"
+  },
+  {
+    "file": "6bbe797196055080e18460f4f8366d507c79f0703d8d3bee23ae396f7ddea1de.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "ht.sr.git.mil.transito",
+    "sha256": "6bbe797196055080e18460f4f8366d507c79f0703d8d3bee23ae396f7ddea1de"
+  },
+  {
+    "file": "6d4c95a0a3efd4f188e6fae2519b899de9192c343a71c770b9c3db4653acd6f7.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.evanh.qlc_controller",
+    "sha256": "6d4c95a0a3efd4f188e6fae2519b899de9192c343a71c770b9c3db4653acd6f7"
+  },
+  {
+    "file": "7167d8e6726351dfea9a1aea49386b65ea2bfbf4df9876a1dfbfdc3fc7b9cce5.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "de.morzo.realmscore",
+    "sha256": "7167d8e6726351dfea9a1aea49386b65ea2bfbf4df9876a1dfbfdc3fc7b9cce5"
+  },
+  {
+    "file": "74109245ca40384abb3831986cb7a1d974017eb08e9dc05235af9037f5a26d67.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.github.handewo.neon",
+    "sha256": "74109245ca40384abb3831986cb7a1d974017eb08e9dc05235af9037f5a26d67"
+  },
+  {
+    "file": "74ccee0d6b258392ea556fd031c94a7b4c04e41d7e358f6abbd6fcfa4f4eb166.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.maazm7d.quickse",
+    "sha256": "74ccee0d6b258392ea556fd031c94a7b4c04e41d7e358f6abbd6fcfa4f4eb166"
+  },
+  {
+    "file": "783026c58d84673c95731517caa93be45d302ca2f33afd0ca53b0a12221efc87.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.gateshipone.odyssey",
+    "sha256": "783026c58d84673c95731517caa93be45d302ca2f33afd0ca53b0a12221efc87"
+  },
+  {
+    "file": "7912512556f516c12841bd082ef41838d2b8db1931478a0d07be03b1d839e5d3.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "eth.matteljay.mastermindy",
+    "sha256": "7912512556f516c12841bd082ef41838d2b8db1931478a0d07be03b1d839e5d3"
+  },
+  {
+    "file": "7f4df3878508804bd0d15df2bdd29cb7f70377182b2e8c069c060024e547e2d5.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.ahorcado",
+    "sha256": "7f4df3878508804bd0d15df2bdd29cb7f70377182b2e8c069c060024e547e2d5"
+  },
+  {
+    "file": "7fba1953f66b1dfb147e355107516bc8d574e2e6032f04725f758fea3f99e00c.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.proninyaroslav.libretrack",
+    "sha256": "7fba1953f66b1dfb147e355107516bc8d574e2e6032f04725f758fea3f99e00c"
+  },
+  {
+    "file": "815e57ae6881e4f73e0ea73f2c2f494cc23df380c5f264a6b1b796ca91119263.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.oriondev.moneywallet",
+    "sha256": "815e57ae6881e4f73e0ea73f2c2f494cc23df380c5f264a6b1b796ca91119263"
+  },
+  {
+    "file": "822200a92727e12308d2c3f8e024f2b8111ed641d7e08ef1e51d88de34eac69b.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.xnotes",
+    "sha256": "822200a92727e12308d2c3f8e024f2b8111ed641d7e08ef1e51d88de34eac69b"
+  },
+  {
+    "file": "8247f4f3dd93f89baf45f4af6a2e0ba09511415a45fe5f575e0c4cb2cb07fe8e.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "io.rosenpin.screenshotsharer",
+    "sha256": "8247f4f3dd93f89baf45f4af6a2e0ba09511415a45fe5f575e0c4cb2cb07fe8e"
+  },
+  {
+    "file": "842144c2b745c0a1029f843d38e0f263f64bd3bf84498a697fe2805ae6e4e6ca.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.chatroom.app",
+    "sha256": "842144c2b745c0a1029f843d38e0f263f64bd3bf84498a697fe2805ae6e4e6ca"
+  },
+  {
+    "file": "88c53a5dc1aa442c348ff025eb04939f3178bd11d561f0211b937be4ff30bb30.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.bmco.cratesiounofficial",
+    "sha256": "88c53a5dc1aa442c348ff025eb04939f3178bd11d561f0211b937be4ff30bb30"
+  },
+  {
+    "file": "8ae7382aa62cc1dd2609fa0205702465d10b247715a3dcb572d8ab7e2b50207c.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.metromusic",
+    "sha256": "8ae7382aa62cc1dd2609fa0205702465d10b247715a3dcb572d8ab7e2b50207c"
+  },
+  {
+    "file": "8af44ab270b9a75d88b0933af5d508311858d02c7df41bf39c7c8b52f582f556.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "io.github.muntashirakon.Music",
+    "sha256": "8af44ab270b9a75d88b0933af5d508311858d02c7df41bf39c7c8b52f582f556"
+  },
+  {
+    "file": "8b5f01ba5c7de1cbd0682f29052fbb4c296168f289e3aff69b21d74d63167a90.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.hos_dvk.easyphone.full",
+    "sha256": "8b5f01ba5c7de1cbd0682f29052fbb4c296168f289e3aff69b21d74d63167a90"
+  },
+  {
+    "file": "8d7252e776aa587d58ae5a2f486a0e353ca916524cec69322cf4c2584d6c6dfa.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "io.github.u_20240816.trovepass",
+    "sha256": "8d7252e776aa587d58ae5a2f486a0e353ca916524cec69322cf4c2584d6c6dfa"
+  },
+  {
+    "file": "8e4cbbf848cc14fe38d81bb600d4a22f86e2936b8f03de9f90e889b487865b9f.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "me.rosuh.easywatermark",
+    "sha256": "8e4cbbf848cc14fe38d81bb600d4a22f86e2936b8f03de9f90e889b487865b9f"
+  },
+  {
+    "file": "92fc672d1d9986833aa74afb3bb383bc5e389d9bc558817166a4894f43ef4eeb.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.sunilpaulmathew.debloater",
+    "sha256": "92fc672d1d9986833aa74afb3bb383bc5e389d9bc558817166a4894f43ef4eeb"
+  },
+  {
+    "file": "93bc8d06148f60400a40961a3afbf767736ab681a0ccb396658dc46872d119aa.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "fr.s13d.photobackup",
+    "sha256": "93bc8d06148f60400a40961a3afbf767736ab681a0ccb396658dc46872d119aa"
+  },
+  {
+    "file": "99ed71b8f28343cc5eabf2fd48f625bcc07a1ddcd79866d8ddf4fbc67ad0e860.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.mattgmg.miracastwidget",
+    "sha256": "99ed71b8f28343cc5eabf2fd48f625bcc07a1ddcd79866d8ddf4fbc67ad0e860"
+  },
+  {
+    "file": "9ba8d93c75edaed1a0035952fa6c828c2c5e97ba2e74ac54b133cd8b24c89020.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.zoffcc.applications.trifa",
+    "sha256": "9ba8d93c75edaed1a0035952fa6c828c2c5e97ba2e74ac54b133cd8b24c89020"
+  },
+  {
+    "file": "9d6d8805e66496fb72377ffebe92562336dc856700ef613f6f508a5bbd470349.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "fr.free.nrw.commons",
+    "sha256": "9d6d8805e66496fb72377ffebe92562336dc856700ef613f6f508a5bbd470349"
+  },
+  {
+    "file": "a53f275455171208d308ba1baf1667011b18fc5ae7e167cb3a837d0317e5a218.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "de.sudoq",
+    "sha256": "a53f275455171208d308ba1baf1667011b18fc5ae7e167cb3a837d0317e5a218"
+  },
+  {
+    "file": "a68e5e61934ab1ee9b3fc926c2d148337de695227d10421ca8637575c169ff65.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "io.github.kkoshin.muse",
+    "sha256": "a68e5e61934ab1ee9b3fc926c2d148337de695227d10421ca8637575c169ff65"
+  },
+  {
+    "file": "aa2a8abff01b768f8864f1599cb010e3ae63302723be080d596ff372483cbf9d.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "io.bmaupin.pitchpipe",
+    "sha256": "aa2a8abff01b768f8864f1599cb010e3ae63302723be080d596ff372483cbf9d"
+  },
+  {
+    "file": "ae25418256404b3e2282c8a0ad61c4e58ba8ae4cbedb465357c47444ae9ad48c.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "io.github.artcraftandroid.pdfcraft",
+    "sha256": "ae25418256404b3e2282c8a0ad61c4e58ba8ae4cbedb465357c47444ae9ad48c"
+  },
+  {
+    "file": "b955c20ad94aec7d24e8b49082b87bb0fc9a98255a42591fa12333880b49017c.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "np.com.binabh.basedcooking",
+    "sha256": "b955c20ad94aec7d24e8b49082b87bb0fc9a98255a42591fa12333880b49017c"
+  },
+  {
+    "file": "bb4aaad841101b02218b572b480a78403cbd3ea53256c725902049e0c85cd601.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "net.gmartin.paperlessngx_uploader",
+    "sha256": "bb4aaad841101b02218b572b480a78403cbd3ea53256c725902049e0c85cd601"
+  },
+  {
+    "file": "bcae411b3f68dcedf94f7ca0f3f8bfeacefaf12baff5c26cb80a3e90c94bb785.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.github.umer0586.droidpad",
+    "sha256": "bcae411b3f68dcedf94f7ca0f3f8bfeacefaf12baff5c26cb80a3e90c94bb785"
+  },
+  {
+    "file": "c392f689ff8a3f1a2489dacc04512607608fa8eeac28aff33758dd535cddef58.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.myfastingapp.app",
+    "sha256": "c392f689ff8a3f1a2489dacc04512607608fa8eeac28aff33758dd535cddef58"
+  },
+  {
+    "file": "c46ccab3a07561867ad02f064985c2576364af2e3a23921eb1aa206b7f3b533a.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.codelv.solar",
+    "sha256": "c46ccab3a07561867ad02f064985c2576364af2e3a23921eb1aa206b7f3b533a"
+  },
+  {
+    "file": "c48a27ad312a5e20953dd325f6ee8982a18e3959a8197079eb06154ef60e7ccb.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.playhex.twa",
+    "sha256": "c48a27ad312a5e20953dd325f6ee8982a18e3959a8197079eb06154ef60e7ccb"
+  },
+  {
+    "file": "c96f45cf029a679daf4e29f3616b391f79fcbd22f43591e79e847b22bf8bfcda.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.mcxa.vortaro",
+    "sha256": "c96f45cf029a679daf4e29f3616b391f79fcbd22f43591e79e847b22bf8bfcda"
+  },
+  {
+    "file": "ca0d9079a48545ea2258c0d0af2536d6d1510e1853cfde3a0830daa5930a43c2.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.tananaev.passportreader",
+    "sha256": "ca0d9079a48545ea2258c0d0af2536d6d1510e1853cfde3a0830daa5930a43c2"
+  },
+  {
+    "file": "d5aacf3d66f6b12b051e76b574be5d7658670f9a95d9372f08de3c4f14f09538.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.vincent_falzon.discreetlauncher",
+    "sha256": "d5aacf3d66f6b12b051e76b574be5d7658670f9a95d9372f08de3c4f14f09538"
+  },
+  {
+    "file": "d83c4442084e6ce39adb652ffdd327b0de2d65f03ebd37fbc2dbe73146c34d33.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.archivekeep.ArchiveKeep",
+    "sha256": "d83c4442084e6ce39adb652ffdd327b0de2d65f03ebd37fbc2dbe73146c34d33"
+  },
+  {
+    "file": "dbcc19f1b556e58268f5bef7ec2a1daa6de96a757ed1c425ba6aeb1b789313b0.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.garyodernichts.downgrader",
+    "sha256": "dbcc19f1b556e58268f5bef7ec2a1daa6de96a757ed1c425ba6aeb1b789313b0"
+  },
+  {
+    "file": "dd528febbf9688e5d0d7be3ca0eb4e219ed8faf01c520a08224e6db8f563c1bd.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.offlinecurrencyconverter.app",
+    "sha256": "dd528febbf9688e5d0d7be3ca0eb4e219ed8faf01c520a08224e6db8f563c1bd"
+  },
+  {
+    "file": "e0965a354b9112636759379883f078e5bd20f00142af39ab1569693e47ff5991.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.nishantboro.splititeasy",
+    "sha256": "e0965a354b9112636759379883f078e5bd20f00142af39ab1569693e47ff5991"
+  },
+  {
+    "file": "e0e18a7613bab7dbc50642d2d4e2898335bdfd17c5bf0ddbf6ead0662e25e0a4.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "io.github.x0b.rcx",
+    "sha256": "e0e18a7613bab7dbc50642d2d4e2898335bdfd17c5bf0ddbf6ead0662e25e0a4"
+  },
+  {
+    "file": "e7009d45dfab9ec1b5c658fa04ef7bc1a3f069e9780681a9dc986bf3ebc2a740.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "net.viggers.zade.wallpaper",
+    "sha256": "e7009d45dfab9ec1b5c658fa04ef7bc1a3f069e9780681a9dc986bf3ebc2a740"
+  },
+  {
+    "file": "e80c673ccf7eedd7b814df40d0971adc89adfaffe6ea7c0cfb46f2961376f40b.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "dev.mage.age",
+    "sha256": "e80c673ccf7eedd7b814df40d0971adc89adfaffe6ea7c0cfb46f2961376f40b"
+  },
+  {
+    "file": "ef8c6012f821c92f7987f5f2a8165a5ea230fb4a86a599d051430fbdc3057fc7.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "code.name.monkey.retromusic",
+    "sha256": "ef8c6012f821c92f7987f5f2a8165a5ea230fb4a86a599d051430fbdc3057fc7"
+  },
+  {
+    "file": "efc3666d6399404b0dfde14443a5ddd595abcfcd04c89b4f018087501dc012cd.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "studio.coldstream.waste_works",
+    "sha256": "efc3666d6399404b0dfde14443a5ddd595abcfcd04c89b4f018087501dc012cd"
+  },
+  {
+    "file": "f2b4d3f021c3a6207c3c9e75a75fa325b88847bd46b4f99e41e28dc3be8fae7f.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "org.secuso.privacyfriendlydicer",
+    "sha256": "f2b4d3f021c3a6207c3c9e75a75fa325b88847bd46b4f99e41e28dc3be8fae7f"
+  },
+  {
+    "file": "f52c45358436fdf19aae64f6a211cc165690cd434ebb685834f0ed09672a5e25.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "com.myAllVideoBrowser",
+    "sha256": "f52c45358436fdf19aae64f6a211cc165690cd434ebb685834f0ed09672a5e25"
+  },
+  {
+    "file": "f69883c8480b7b64d22a168ec2bb827c6e185b460d524ac3c95f8945368b0cb7.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "dev.thaulow.scrib",
+    "sha256": "f69883c8480b7b64d22a168ec2bb827c6e185b460d524ac3c95f8945368b0cb7"
+  },
+  {
+    "file": "fa9bdd1701c0658efa627a91f077f5ad4059f0d5f5a7079fd39d6aafd71be44b.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "io.github.ewoc2026.visualroutines",
+    "sha256": "fa9bdd1701c0658efa627a91f077f5ad4059f0d5f5a7079fd39d6aafd71be44b"
+  },
+  {
+    "file": "fcef92e9a749df74781a96f7e6960d7c266d8825229a18d9fdae78c1ae1f6a0a.json",
+    "label": 0,
+    "label_name": "benign",
+    "package_name": "site.remlit.snowdrop",
+    "sha256": "fcef92e9a749df74781a96f7e6960d7c266d8825229a18d9fdae78c1ae1f6a0a"
+  },
+  {
+    "file": "025ab4589d6cd1a9f838445637d25ad18f06ed873cd839e52bf12c1e505b542e.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.kitchenn",
+    "sha256": "025ab4589d6cd1a9f838445637d25ad18f06ed873cd839e52bf12c1e505b542e"
+  },
+  {
+    "file": "054017f3de789b90e25436ae44291f035d9243db89df0a59f33057b02d15fa33.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "jp.co.toshiba.ivc.ar.kaden",
+    "sha256": "054017f3de789b90e25436ae44291f035d9243db89df0a59f33057b02d15fa33"
+  },
+  {
+    "file": "0996fe883b473584e14f8416be36719754d1323815226b7b493e39344d77cf67.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "jp.co.toshiba.ivc.ar.kaden",
+    "sha256": "0996fe883b473584e14f8416be36719754d1323815226b7b493e39344d77cf67"
+  },
+  {
+    "file": "0a23f7a6cb40cae1d7d7bc996a84e162ffb5f7fbcdfa1816aba412c60c31910a.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.baike.szbf",
+    "sha256": "0a23f7a6cb40cae1d7d7bc996a84e162ffb5f7fbcdfa1816aba412c60c31910a"
+  },
+  {
+    "file": "1b47265eab3752a7d64a64f570e166a2114e41f559fa468547e6fa917cf64256.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.android.service",
+    "sha256": "1b47265eab3752a7d64a64f570e166a2114e41f559fa468547e6fa917cf64256"
+  },
+  {
+    "file": "1d22924bbe5dce7696e18d880482b63ce19ca0746f8671aaec865cce143f6e6f.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.sileria.alsalah",
+    "sha256": "1d22924bbe5dce7696e18d880482b63ce19ca0746f8671aaec865cce143f6e6f"
+  },
+  {
+    "file": "1eeb5011caf31ebe4478a03a07a15656dfdee15fadd560bf76987e93942d18f8.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "plus.H51EFB954",
+    "sha256": "1eeb5011caf31ebe4478a03a07a15656dfdee15fadd560bf76987e93942d18f8"
+  },
+  {
+    "file": "2cf4e17898129aaeb6f0766329069c14a4699a8906c13e47890c621dd55b9aa7.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.buzlylabs.kamasutrasexpositions",
+    "sha256": "2cf4e17898129aaeb6f0766329069c14a4699a8906c13e47890c621dd55b9aa7"
+  },
+  {
+    "file": "3365bbab7f730fca3bd917bc9d3579587f6a8fb09d1eb379c018e43fb3910062.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.didatour.view",
+    "sha256": "3365bbab7f730fca3bd917bc9d3579587f6a8fb09d1eb379c018e43fb3910062"
+  },
+  {
+    "file": "341dd03ce944519724af5ea354550fe18b797c488d36ffc83a03a2150005ca5e.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "org.mhgames.jewels",
+    "sha256": "341dd03ce944519724af5ea354550fe18b797c488d36ffc83a03a2150005ca5e"
+  },
+  {
+    "file": "4a212a0e25c7775e7afe46b680668edf280b5ab1652309e962137d8923006d93.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.appbuilder.u12111p16178",
+    "sha256": "4a212a0e25c7775e7afe46b680668edf280b5ab1652309e962137d8923006d93"
+  },
+  {
+    "file": "576639b9c12143e558a4ff8866d6b0e1370c0705cf8701dfc296b497a4de20c7.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.ldh.no1",
+    "sha256": "576639b9c12143e558a4ff8866d6b0e1370c0705cf8701dfc296b497a4de20c7"
+  },
+  {
+    "file": "6ba1de1c1b1294edf87b3780a101ed42aa8fe18d4d1ae494361c976ca9ebc26b.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.plato.dovizim",
+    "sha256": "6ba1de1c1b1294edf87b3780a101ed42aa8fe18d4d1ae494361c976ca9ebc26b"
+  },
+  {
+    "file": "8f4af160bf2ad307f4e8b379f2f66cf8f7e97c311f80b47f4885b90e8e3568ed.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.kandian.hdtogoapp",
+    "sha256": "8f4af160bf2ad307f4e8b379f2f66cf8f7e97c311f80b47f4885b90e8e3568ed"
+  },
+  {
+    "file": "8f6078b87395510b056debebdf388e224ff95e8990a0dd740aedfea6a258784b.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "org.benews",
+    "sha256": "8f6078b87395510b056debebdf388e224ff95e8990a0dd740aedfea6a258784b"
+  },
+  {
+    "file": "9d767c41599325ccd0643d6f432b9075775a85c60df176a845605715be230263.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "krep.itmtd.ywtjexf",
+    "sha256": "9d767c41599325ccd0643d6f432b9075775a85c60df176a845605715be230263"
+  },
+  {
+    "file": "bbe84b9d8dedb2b813afbc4825bcd31efb8a0979365e743b28387122e5604c89.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.thinkking",
+    "sha256": "bbe84b9d8dedb2b813afbc4825bcd31efb8a0979365e743b28387122e5604c89"
+  },
+  {
+    "file": "be0df39d6e334908c685e4c77b89efc49cc9bddc528a7c2434576b5a8b740f88.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.google.progress",
+    "sha256": "be0df39d6e334908c685e4c77b89efc49cc9bddc528a7c2434576b5a8b740f88"
+  },
+  {
+    "file": "c027d96422191fcfbb3a170b7912b4f4652fca33de9ce8099cdbd393b385ca13.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.twentyfirstcbh.reader",
+    "sha256": "c027d96422191fcfbb3a170b7912b4f4652fca33de9ce8099cdbd393b385ca13"
+  },
+  {
+    "file": "d0f7b83bab82b789988156ba98fd2316a41d68a7687a3c9e1122321c82f74292.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "appinventor.ai_rathiisarun.XrayScanner",
+    "sha256": "d0f7b83bab82b789988156ba98fd2316a41d68a7687a3c9e1122321c82f74292"
+  },
+  {
+    "file": "d5fbe86285a0515d05b036edd5f826307233ae9dd6ed4ec1f4800f389713aeaf.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.toi.reader.activities",
+    "sha256": "d5fbe86285a0515d05b036edd5f826307233ae9dd6ed4ec1f4800f389713aeaf"
+  },
+  {
+    "file": "ec0e0d25aa1de4f38894fb1999d6f21535610ffba15423a02ec993fea1561c66.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "ll.ap.ken",
+    "sha256": "ec0e0d25aa1de4f38894fb1999d6f21535610ffba15423a02ec993fea1561c66"
+  },
+  {
+    "file": "ed71d628c0e05cf5f44c86b89b21ac154f9bb2e7933a828bba0a7dfea96466e4.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.example.xiaoshuo",
+    "sha256": "ed71d628c0e05cf5f44c86b89b21ac154f9bb2e7933a828bba0a7dfea96466e4"
+  },
+  {
+    "file": "f3b40a0d1e757a64b68f6f4b73e40eba6e25e947f6c0beb6afb8d3e4dde0a69a.json",
+    "label": 1,
+    "label_name": "malware",
+    "package_name": "com.google.android.gm",
+    "sha256": "f3b40a0d1e757a64b68f6f4b73e40eba6e25e947f6c0beb6afb8d3e4dde0a69a"
+  }
+]

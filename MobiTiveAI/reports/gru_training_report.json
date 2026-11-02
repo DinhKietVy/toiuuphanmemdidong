@@ -1,0 +1,38 @@
+{
+  "model": "GRU",
+  "input_features": 2915,
+  "input_shape": [
+    1,
+    2915
+  ],
+  "gru_units": 128,
+  "dropout": 0.5,
+  "batch_size": 16,
+  "learning_rate": 0.001,
+  "class_weights": {
+    "0": 0.7461300309597523,
+    "1": 1.5157232704402517
+  },
+  "best_validation_loss": 0.08578736335039139,
+  "best_validation_accuracy": 0.9750000238418579,
+  "epochs_trained": 34,
+  "test_metrics": {
+    "accuracy": 0.9821428571428571,
+    "precision_malware": 1.0,
+    "recall_malware": 0.9166666666666666,
+    "f1_malware": 0.9565217391304348,
+    "roc_auc": 0.9952651515151516,
+    "pr_auc": 0.9853756157635465,
+    "confusion_matrix": [
+      [
+        88,
+        0
+      ],
+      [
+        2,
+        22
+      ]
+    ],
+    "test_samples": 112
+  }
+}
