@@ -64,13 +64,39 @@ Luồng hoạt động:
 3.  Dashboard gửi `POLL` (trạng thái + cảnh báo trong một kết nối) mỗi
     2 giây, và `START`/`STOP` khi bấm nút. Bridge còn hỗ trợ `STATUS`,
     `LOGS` để kiểm tra thủ công.
-4.  Bridge khởi chạy `tracee-android`.
-5.  Tracee theo dõi sự kiện ghi file và kiểm tra magic bytes trong thư
-    mục: `/data/local/tmp/dropper-demo/`
-6.  Dashboard hiển thị các cảnh báo ELF, ZIP/APK và DEX.
+4.  Bridge khởi chạy `tracee-android --trace event=write_alert --trace
+    event=uid_changed_alert`, tức hai signature mà paper BPFroid đánh
+    giá, chạy trên **toàn hệ thống** (mọi app, mọi thư mục):
+    -   **Dropper Detection** (`write_alert`): eBPF gắn vào `vfs_write`
+        và đọc ngay trong kernel 4 byte đầu của mọi lần ghi file ở
+        offset 0. Chỉ khi khớp ELF (`\x7fELF`), DEX (`dex\n`) hoặc
+        ZIP/APK/JAR (`PK\x03\x04`) mới gửi sự kiện lên user space.
+    -   **Privilege Escalation** (`uid_changed_alert`): eBPF ở tracepoint
+        `sys_enter` nhớ UID của từng thread và so sánh giữa hai syscall
+        liên tiếp. Engine chỉ báo khi UID **tăng quyền** (thành root,
+        hoặc từ UID app xuống UID hệ thống); các lần hạ quyền hợp lệ
+        (zygote 0 → UID app khi mở app) bị bỏ qua.
+5.  Engine ghi cảnh báo vào `/data/local/tmp/bpfroid-alerts.log` (file
+    riêng, chỉ chứa cảnh báo).
+6.  Dashboard hiển thị cảnh báo kèm **tên package của app** (tra từ
+    UID), đếm theo loại payload và số lần leo thang đặc quyền.
 
-> Các file tạo trong phần kiểm thử chỉ là payload giả lập chứa magic
-> bytes, không phải APK/DEX hoàn chỉnh và không thực thi mã độc.
+Định dạng cảnh báo:
+
+``` text
+BPFROID_DROPPER_ALERT type=DEX uid=10209 pid=13547 comm=unzip dev=266338350 inode=565546 path=/data/user/0/com.bpfroid.dashboard/files/update.dex
+BPFROID_PRIVESC_ALERT prev_uid=2000 uid=0 pid=15990 tid=15990 comm=su
+```
+
+Mã nguồn engine (fork Tracee của BPFroid) nằm ngoài repo, trong WSL tại
+`~/bpfroid-work/BPFroid`. Repo lưu bản vá và script build ở
+`BPFroidDashboard/engine/` (`bpfroid-android.patch`,
+`build-android.sh`).
+
+> Các kịch bản tấn công ở mục 4 chỉ **mô phỏng hành vi** của malware
+> bằng file hệ thống vô hại (`classes.dex` của chính app Dashboard,
+> `/system/bin/sh`, `su` của emulator). Không có mã độc thật nào được
+> tải về hay thực thi.
 
 ## 2. Điều kiện trước khi demo
 
@@ -202,73 +228,222 @@ Kiểm tra: - Engine Status: `RUNNING` - Dashboard không hiển thị
 
 Dashboard tự làm mới trạng thái và danh sách cảnh báo định kỳ.
 
-## 4. Trình diễn phát hiện payload
+## 4. Kịch bản tấn công như trong paper BPFroid
 
-Mở PowerShell và chạy từng bài kiểm thử. Engine phải đang ở trạng thái
-RUNNING.
+Paper BPFroid đánh giá hai signature trên 200 mẫu malware Android thật:
 
-### Test 1 -- ELF
+-   **Dropper Detection**: malware vượt qua kiểm duyệt (Google Play,
+    antivirus quét tĩnh) bằng cách chỉ mang phần vỏ vô hại; khi đã chạy
+    trên máy, nó tải hoặc giải nén **payload thật** (DEX, thư viện/binary
+    ELF, APK thứ cấp) ra file rồi nạp/chạy. Paper phát hiện 33 mẫu thả
+    file: 9 ELF, 11 DEX, 16 archive (apk/jar/zip).
+-   **Privilege Escalation**: root exploit (ví dụ lỗi kernel) làm tiến
+    trình của app đột ngột có UID 0. Dấu hiệu kernel nhìn thấy là UID của
+    một thread thay đổi giữa hai syscall. Paper không ghi nhận mẫu nào
+    thành công vì thiết bị đã vá.
 
-``` powershell
-adb shell "mkdir -p /data/local/tmp/dropper-demo"
-adb shell "printf '\177ELF\001\001\001\000' > /data/local/tmp/dropper-demo/demo-elf.bin"
-Start-Sleep -Seconds 2
-```
+Mục này tái hiện **hành vi** của từng loại tấn công bằng file vô hại.
+Các bước "tấn công" chạy dưới UID của một app thường (UID ≥ 10000) nhờ
+`run-as` với app Dashboard bản debug, nên engine nhìn thấy đúng như một
+app độc hại đang hoạt động.
 
-Cảnh báo mong đợi có dạng:
+### Chuẩn bị
 
-``` text
-BPFROID_DROPPER_ALERT type=ELF pid=<PID> path=/data/local/tmp/dropper-demo/demo-elf.bin
-```
-
-### Test 2 -- ZIP/APK
-
-``` powershell
-adb shell "printf 'PK\003\004\024\000\000\000' > /data/local/tmp/dropper-demo/demo-apk.apk"
-Start-Sleep -Seconds 2
-```
-
-Cảnh báo mong đợi:
-
-``` text
-BPFROID_DROPPER_ALERT type=ZIP/APK pid=<PID> path=/data/local/tmp/dropper-demo/demo-apk.apk
-```
-
-### Test 3 -- DEX
+Engine phải đang RUNNING. Trong PowerShell, đặt hai biến dùng chung cho
+các lệnh bên dưới:
 
 ``` powershell
-adb shell "printf 'dex\n035\000' > /data/local/tmp/dropper-demo/demo-dex.dex"
-Start-Sleep -Seconds 2
+$A = "com.bpfroid.dashboard"
+$APK = ((adb shell pm path $A) -replace 'package:','').Trim()
 ```
 
-Cảnh báo mong đợi:
+-   `$A`: package của app đóng vai "app độc hại".
+-   `$APK`: đường dẫn file APK đã cài của app (`/data/app/.../base.apk`),
+    dùng làm nguồn DEX/APK thật.
 
-``` text
-BPFROID_DROPPER_ALERT type=DEX pid=<PID> path=/data/local/tmp/dropper-demo/demo-dex.dex
-```
+Bảng tóm tắt kết quả mong đợi (đã chạy thử trên emulator):
 
-### Kiểm tra danh sách cảnh báo từ Bridge
+  Mã   Kịch bản                              Cảnh báo mong đợi
+  ---- ------------------------------------- ---------------------------------
+  D1   Nạp mã DEX động                       `DROPPER type=DEX`
+  D2   Thả và chạy binary ELF native         `DROPPER type=ELF`
+  D3   Thả APK thứ cấp                       `DROPPER type=ZIP/APK`
+  D4   Ngụy trang payload bằng đuôi file     `DROPPER type=ELF`
+  N1   Ghi file bình thường (đối chứng)      Không có
+  P1   Leo thang lên root                    `PRIVESC 2000 → 0`
+  P2   App thử gọi `su` (bị chặn)            Không có
+  P3   Mở app bình thường (đối chứng)        Không có
+  L1   Né signature: tách magic bytes        Không có (hạn chế)
+  L2   Né signature: chép bằng kernel        Không có (hạn chế)
+
+Sau mỗi lệnh, chờ 1--2 giây rồi xem Dashboard hoặc chạy
+`adb shell "echo LOGS | toybox nc -w 5 127.0.0.1 8765"`.
+
+### A. Dropper Detection
+
+#### D1 -- Nạp mã động bằng file DEX (dynamic code loading)
 
 ``` powershell
-adb shell "echo LOGS | toybox nc -w 5 127.0.0.1 8765"
+adb shell "run-as $A sh -c 'unzip -p $APK classes.dex > files/update.dex'"
 ```
 
-Kết quả sẽ chứa các dòng `BPFROID_DROPPER_ALERT` đã phát hiện.
+-   **Lệnh làm gì:** với UID của app, giải nén `classes.dex` (bytecode
+    Dalvik thật) từ APK rồi ghi vào thư mục dữ liệu riêng của app
+    `files/update.dex`.
+-   **Mô phỏng tấn công:** trojan/dropper tải "bản cập nhật" từ server
+    điều khiển (C&C), lưu thành `.dex` rồi nạp bằng `DexClassLoader`.
+    Mã độc không nằm trong APK lúc quét, nên **phân tích tĩnh (như
+    MobiTive ở phần trên) không thấy**; chỉ giám sát lúc chạy mới bắt
+    được.
+-   **Cảnh báo:**
+    `BPFROID_DROPPER_ALERT type=DEX uid=10209 ... comm=unzip ... path=/data/user/0/com.bpfroid.dashboard/files/update.dex`
+
+#### D2 -- Thả và chạy binary native (ELF)
+
+``` powershell
+adb shell "run-as $A sh -c 'cp /system/bin/sh files/libpayload.so && chmod 700 files/libpayload.so && ./files/libpayload.so -c id'"
+```
+
+-   **Lệnh làm gì:** chép một binary ELF thật (`/system/bin/sh`) vào thư
+    mục app với tên `libpayload.so`, cấp quyền thực thi rồi chạy nó; lệnh
+    `id` in ra `uid=10209(...)`, chứng tỏ payload đã chạy dưới danh tính
+    app.
+-   **Mô phỏng tấn công:** malware thả root exploit, cryptominer hoặc
+    backdoor viết bằng C rồi thực thi, thường đặt tên giống thư viện
+    `.so` để trông vô hại.
+-   **Cảnh báo:** `type=ELF ... comm=cp ... path=.../files/libpayload.so`
+    (cảnh báo xuất hiện **ngay lúc ghi file**, trước khi payload chạy).
+
+#### D3 -- Thả APK thứ cấp
+
+``` powershell
+adb shell "run-as $A sh -c 'cat $APK > files/update.apk'"
+```
+
+-   **Lệnh làm gì:** ghi nguyên một file APK vào thư mục app.
+-   **Mô phỏng tấn công:** dropper tải một app độc hại thứ hai (APK) rồi
+    hiện hộp thoại "cập nhật" để dụ người dùng cài, hoặc nạp APK/JAR như
+    plugin. Đây là nhóm paper gặp nhiều nhất (16 archive).
+-   **Cảnh báo:** `type=ZIP/APK ... comm=cat ... path=.../files/update.apk`
+
+#### D4 -- Ngụy trang payload bằng đuôi file
+
+``` powershell
+adb shell "run-as $A sh -c 'cp /system/bin/sh files/.thumb.jpg'"
+```
+
+-   **Lệnh làm gì:** ghi binary ELF vào một file ẩn có đuôi ảnh `.jpg`.
+-   **Mô phỏng tấn công:** malware đổi tên/đuôi file để qua mặt các công
+    cụ lọc theo tên hoặc phần mở rộng.
+-   **Cảnh báo:** `type=ELF ... path=.../files/.thumb.jpg`. BPFroid xét
+    **nội dung** (magic bytes) chứ không xét tên file, nên ngụy trang
+    không có tác dụng.
+
+#### N1 -- Đối chứng: ghi file bình thường
+
+``` powershell
+adb shell "run-as $A sh -c 'echo hello > files/note.txt; cp /system/etc/hosts files/hosts.txt'"
+```
+
+-   **Lệnh làm gì:** app ghi file text như mọi app bình thường.
+-   **Ý nghĩa:** chứng minh engine **không** báo động cho mọi lần ghi.
+    Kết quả mong đợi: **không có cảnh báo**.
+
+### B. Privilege Escalation
+
+#### P1 -- Leo thang từ người dùng thường lên root
+
+``` powershell
+adb shell "su 2000 su 0 id"
+```
+
+-   **Lệnh làm gì:** `su 2000` hạ quyền xuống UID 2000 (người dùng
+    `shell`, không có đặc quyền); trong tiến trình đó, `su 0` leo
+    ngược lên root và chạy `id`, in ra `uid=0(root)`.
+-   **Mô phỏng tấn công:** một root exploit biến tiến trình không đặc
+    quyền thành root. Ở đây `su` của emulator đóng vai exploit; với
+    kernel, dấu hiệu là như nhau: cùng một thread, UID đổi từ 2000 sang
+    0 giữa hai syscall.
+-   **Cảnh báo:**
+    `BPFROID_PRIVESC_ALERT prev_uid=2000 uid=0 pid=... comm=su`.
+    Dashboard hiển thị `[PRIVESC] com.android.shell (uid 2000) → root
+    (uid 0)`. Lần hạ quyền 0 → 2000 ở đầu lệnh **không** bị báo.
+
+#### P2 -- App thường thử chiếm root (bị chặn)
+
+``` powershell
+adb shell "run-as $A su 0 id"
+```
+
+-   **Lệnh làm gì:** từ UID của app, cố gọi `su` để lấy root.
+-   **Kết quả:** `run-as: exec failed for su: Permission denied`. SELinux
+    và quyền file chặn app chạy `su`, UID không đổi nên **không có cảnh
+    báo**. BPFroid chỉ báo khi việc leo thang thực sự thành công.
+
+#### P3 -- Đối chứng: mở app bình thường
+
+``` powershell
+adb shell "am start -W -n com.android.settings/.Settings"
+adb shell "input keyevent HOME"
+```
+
+-   **Lệnh làm gì:** mở app Cài đặt rồi về màn hình chính.
+-   **Ý nghĩa:** mỗi lần mở app, zygote fork một tiến trình root rồi hạ
+    xuống UID của app, tức là UID **có** đổi. Engine bỏ qua các lần hạ
+    quyền này. Kết quả mong đợi: **không có cảnh báo PRIVESC**.
+
+### C. Hạn chế: những cách né mà signature không bắt được
+
+Hai kịch bản này cho thấy giới hạn thật của signature (paper cũng chỉ
+hook `vfs_write` và chỉ xét offset 0).
+
+#### L1 -- Tách magic bytes thành hai lần ghi
+
+``` powershell
+adb shell "run-as $A sh -c '(printf \\177E; printf LF\\002\\001\\001) > files/split.bin'"
+```
+
+-   **Lệnh làm gì:** ghi header ELF thành hai lần: lần một chỉ 2 byte
+    `\177E`, lần hai `LF...`. File cuối cùng vẫn bắt đầu bằng `\177ELF`.
+-   **Vì sao lọt:** eBPF chỉ đọc magic khi **một** lần ghi ở offset 0 dài
+    hơn 4 byte. Kết quả: **không có cảnh báo**.
+
+#### L2 -- Chép file bằng cơ chế trong kernel
+
+``` powershell
+adb shell "run-as $A sh -c 'cp $APK files/copy.apk'"
+```
+
+-   **Lệnh làm gì:** chép APK bằng `cp` trong cùng một phân vùng.
+-   **Vì sao lọt:** khi nguồn và đích cùng phân vùng, `cp` (toybox) để
+    kernel tự chép dữ liệu (kiểu `copy_file_range`/`sendfile`) mà không
+    gọi `vfs_write` với buffer từ user space, nên không đi qua điểm
+    hook. Kết quả: **không có cảnh báo**. (So với D2/D4: nguồn
+    `/system` khác phân vùng nên `cp` phải đọc/ghi bình thường và bị bắt.)
+
+Muốn bịt các lỗ này cần hook thêm (ví dụ `vfs_copy_file_range`,
+`do_splice_direct`) hoặc kiểm tra header file khi đóng/thực thi file.
+
+### Dọn file thử nghiệm
+
+``` powershell
+adb shell "run-as $A sh -c 'rm -f files/update.dex files/libpayload.so files/update.apk files/.thumb.jpg files/note.txt files/hosts.txt files/split.bin files/copy.apk'"
+```
 
 ### Kiểm tra trên Dashboard
 
-Chờ tối đa vài giây để Dashboard làm mới. Với ba payload vừa tạo, kết
-quả mong đợi:
+Sau khi chạy hết D1--D4, N1, P1--P3, L1--L2 trong cùng một lần START,
+Dashboard hiển thị:
 
--   Total alerts: 3
--   ELF: 1
--   ZIP/APK: 1
--   DEX: 1
--   Danh sách sự kiện hiển thị đường dẫn và PID tương ứng.
+-   Total alerts: 5
+-   Payloads: ELF 2 | ZIP/APK 1 | DEX 1
+-   Privilege escalation: 1
+-   Mỗi cảnh báo ghi tên package (ví dụ `com.bpfroid.dashboard`), PID,
+    tên tiến trình và đường dẫn.
 
-Số lượng có thể lớn hơn nếu bạn chạy lại lệnh tạo payload nhiều lần, vì
-mỗi lần ghi tạo một cảnh báo mới. Dashboard đếm cộng dồn qua các lần
-STOP/START cho tới khi app được mở lại.
+Số lượng có thể lớn hơn nếu có tiến trình hệ thống ghi APK/ELF cùng lúc
+(cài app qua adb, Play Store, `dex2oat`) hoặc nếu chạy lại lệnh. Dashboard
+đếm cộng dồn qua các lần STOP/START cho tới khi app được mở lại.
 
 ## 5. Demo chức năng STOP / START
 
@@ -303,9 +478,10 @@ RUNNING:<PID>
 5.  Tạo một payload mới để xác nhận Engine tiếp tục phát hiện:
 
 ``` powershell
-adb shell "printf '\177ELF\001\001\001\000' > /data/local/tmp/dropper-demo/after-restart.bin"
+adb shell "run-as com.bpfroid.dashboard sh -c 'cp /system/bin/sh files/after-restart.so'"
 Start-Sleep -Seconds 2
 adb shell "echo LOGS | toybox nc -w 5 127.0.0.1 8765"
+adb shell "run-as com.bpfroid.dashboard rm -f files/after-restart.so"
 ```
 
 ## 6. Tắt demo
@@ -342,9 +518,13 @@ Kết quả mong đợi: `STOPPED`.
                                       nếu có lỗi kprobe `-17`, chạy Bước 3
                                       rồi START lại.
 
-  Engine RUNNING nhưng không có cảnh  Kiểm tra đã ghi file vào đúng thư mục
-  báo                                 `/data/local/tmp/dropper-demo/` và xem
+  Engine RUNNING nhưng không có cảnh  Kiểm tra dữ liệu ghi bắt đầu bằng magic
+  báo                                 bytes ở offset 0 và dài hơn 4 byte, và
+                                      không rơi vào L1/L2 ở mục 4; xem
                                       output LOGS.
+
+  `run-as: package not debuggable`    Cài bản **debug** của Dashboard
+                                      (`gradlew :app:installDebug`).
 
   Dashboard chưa cập nhật cảnh báo    Đợi chu kỳ refresh tiếp theo; đối chiếu
                                       trực tiếp bằng lệnh LOGS.
@@ -354,22 +534,54 @@ Các lệnh xem log hữu ích:
 
 ``` powershell
 adb shell "tail -n 60 /data/local/tmp/bpfroid-engine.log"
+adb shell "cat /data/local/tmp/bpfroid-alerts.log"
 adb shell "cat /data/local/tmp/bpfroid-bridge.log"
 adb shell "pidof tracee-android"
 ```
 
+### Build lại engine
+
+Trong WSL (đã có NDK r30, elfutils và libbpf như lần build trước):
+
+``` bash
+cd ~/bpfroid-work/BPFroid
+bash scripts/build-android.sh      # = BPFroidDashboard/engine/build-android.sh
+```
+
+Nếu sửa `tracee/tracee.bpf.c` thì build lại cả object BPF (bản vá hiện
+tại có sửa: xóa UID đã lưu của thread khi thread thoát, tránh báo động
+giả khi TID được tái sử dụng):
+
+``` bash
+make -j"$(nproc)" bpf VERSION=dev ARCH=x86_64 \
+  KERN_SRC_PATH="$HOME/android-kernel" KERN_BLD_PATH="$HOME/android-kernel"
+```
+
+Sau đó STOP engine, `adb push` `dist/tracee-android` và
+`dist/tracee.bpf.dev.o` vào `/data/local/tmp/` rồi START lại.
+
 ## 8. Kịch bản demo ngắn khi thuyết trình
 
-1.  Mở emulator và BPFroid Dashboard.
-2.  Khởi động Bridge và Engine theo Bước 2--4.
-3.  Cho người xem thấy trạng thái Engine `RUNNING`.
-4.  Tạo lần lượt payload ELF, ZIP/APK và DEX.
-5.  Cho người xem thấy các cảnh báo xuất hiện trên Dashboard.
-6.  Nhấn STOP để chứng minh có thể dừng Engine.
-7.  Nhấn START, tạo payload mới và chứng minh Engine tiếp tục phát hiện.
-8.  Kết thúc bằng STOP.
+1.  Mở emulator và BPFroid Dashboard; khởi động Bridge và Engine theo
+    Bước 2--4; cho người xem thấy `ENGINE RUNNING`.
+2.  Giới thiệu bối cảnh: malware né phân tích tĩnh bằng cách tải payload
+    lúc chạy (mục 4, phần mở đầu).
+3.  Chạy **D1** (DEX động) và **D2** (ELF native, cho thấy payload chạy
+    với `uid=10209`): mỗi lệnh hiện ngay một cảnh báo ghi rõ app
+    `com.bpfroid.dashboard` thả file gì, ở đâu.
+4.  Chạy **D4**: đổi đuôi thành `.jpg` vẫn bị bắt vì BPFroid xét nội dung.
+5.  Chạy **N1** và **P3**: hoạt động bình thường không gây báo động.
+6.  Chạy **P1**: Dashboard hiện `[PRIVESC] com.android.shell (uid 2000)
+    → root (uid 0)`; rồi **P2**: app không leo được thì không báo.
+7.  Chạy **L1** hoặc **L2** để thảo luận hạn chế của signature.
+8.  Nhấn STOP rồi START trên Dashboard, chạy lại D2 để chứng minh engine
+    tiếp tục phát hiện; dọn file thử nghiệm và kết thúc bằng STOP.
 
-**Lưu ý:** Demo hiện tại kiểm tra dấu hiệu ghi file trong thư mục thử
-nghiệm và nhận diện định dạng dựa trên magic bytes. Đây là bản trình
-diễn cơ chế phát hiện, không nên mô tả là đã phân tích đầy đủ hành vi
-hoặc xác định payload độc hại chỉ dựa trên định dạng file.
+**Lưu ý:** Engine giám sát việc ghi file trên toàn hệ thống và nhận
+diện định dạng dựa trên magic bytes. Cảnh báo nghĩa là "một tiến trình
+vừa ghi ra file thực thi/gói ứng dụng", không có nghĩa file đó chắc chắn
+độc hại: các tiến trình hệ thống hợp lệ (cài app qua adb, Play Store,
+`dex2oat`, cập nhật) cũng sinh cảnh báo. Cần xem UID/package và đường
+dẫn, rồi kiểm chứng file bằng công cụ khác (ví dụ VirusTotal như trong
+paper). Cảnh báo PRIVESC cũng có thể đến từ công cụ quản trị hợp lệ
+(ví dụ `su` trên máy đã root) chứ không chỉ từ exploit.

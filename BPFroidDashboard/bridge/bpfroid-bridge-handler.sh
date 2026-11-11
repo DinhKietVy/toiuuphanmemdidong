@@ -4,6 +4,8 @@
 BASE=/data/local/tmp
 ENGINE=$BASE/tracee-android
 LOG=$BASE/bpfroid-engine.log
+# Engine tự ghi riêng các dòng BPFROID_DROPPER_ALERT / BPFROID_PRIVESC_ALERT vào file này.
+ALERTS=$BASE/bpfroid-alerts.log
 RUN_ID_FILE=$BASE/bpfroid-run.id
 KPROBES="pvfs_write rvfs_write pvfs_writev rvfs_writev"
 
@@ -63,9 +65,15 @@ case "$CMD" in
         cleanup_kprobes
         cd "$BASE" || { echo "ERROR:ENGINE_NOT_STARTED"; exit 1; }
         : > "$LOG"
+        : > "$ALERTS"
         date +%s > "$RUN_ID_FILE"
         chmod 755 "$ENGINE"
-        TRACEE_BPF_FILE=$BASE/tracee.bpf.dev.o "$ENGINE" --build-policy never --trace event=execve --trace event=vfs_write --capture write >> "$LOG" 2>&1 &
+        # Hai signature của paper, trên toàn hệ thống:
+        #  write_alert       - eBPF kiểm tra magic bytes của mọi lần ghi ở offset 0 (ELF/DEX/ZIP)
+        #  uid_changed_alert - eBPF so UID của mỗi thread giữa hai syscall liên tiếp
+        TRACEE_BPF_FILE=$BASE/tracee.bpf.dev.o BPFROID_ALERT_FILE=$ALERTS \
+            "$ENGINE" --build-policy never \
+            --trace event=write_alert --trace event=uid_changed_alert >> "$LOG" 2>&1 &
         sleep 2
         PID=$(engine_pid)
         [ -n "$PID" ] && echo "OK:RUNNING:$PID" || echo "ERROR:ENGINE_NOT_STARTED"
@@ -75,14 +83,14 @@ case "$CMD" in
         echo "OK:STOPPED"
         ;;
     LOGS)
-        grep '^BPFROID_DROPPER_ALERT' "$LOG" 2>/dev/null | tail -n 20
+        tail -n 20 "$ALERTS" 2>/dev/null
         ;;
     POLL)
         # Dùng cho Dashboard: trạng thái + mã lần chạy + cảnh báo kèm số dòng,
         # gộp trong một kết nối. Cặp (RUN, số dòng) định danh duy nhất mỗi cảnh báo.
         status_line
         echo "RUN:$(cat "$RUN_ID_FILE" 2>/dev/null || echo 0)"
-        grep -n '^BPFROID_DROPPER_ALERT' "$LOG" 2>/dev/null | tail -n 100
+        grep -n '^BPFROID_' "$ALERTS" 2>/dev/null | tail -n 100
         ;;
     *)
         echo "ERROR:UNKNOWN_COMMAND"

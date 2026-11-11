@@ -1,6 +1,7 @@
 
 package com.bpfroid.dashboard;
 
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
@@ -16,7 +17,9 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -35,8 +38,18 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int MAX_DISPLAYED = 30;
     private static final Pattern ALERT_LINE =
-            Pattern.compile("^(\\d+):(BPFROID_DROPPER_ALERT.*)$");
+            Pattern.compile("^(\\d+):(BPFROID_[A-Z]+_ALERT .*)$");
+    private static final String PRIVESC_PREFIX = "BPFROID_PRIVESC_ALERT";
+    // Engine: "BPFROID_PRIVESC_ALERT prev_uid=.. uid=.. pid=.. tid=.. comm=.."
+    private static final Pattern PRIVESC_FIELDS = Pattern.compile(
+            "prev_uid=(\\d+) uid=(\\d+) pid=(\\d+) tid=\\d+ comm=(\\S*)");
+    // Engine: "BPFROID_DROPPER_ALERT type=.. uid=.. pid=.. comm=.. dev=.. inode=.. path=.."
+    private static final Pattern ALERT_FIELDS = Pattern.compile(
+            "type=(\\S+) uid=(\\d+) pid=(\\d+) comm=(\\S*) .*?path=(.*)$");
     private static final Pattern ALERT_TYPE = Pattern.compile("\\btype=(\\S+)");
+    private static final int FIRST_APP_UID = 10000;
+
+    private final Map<Integer, String> uidLabels = new HashMap<>();
 
     private TextView txtEngineStatus;
     private TextView txtEventCount;
@@ -58,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
     private int elfCount = 0;
     private int zipCount = 0;
     private int dexCount = 0;
+    private int privescCount = 0;
 
     private volatile boolean activityDestroyed = false;
 
@@ -146,7 +160,8 @@ public class MainActivity extends AppCompatActivity {
         final String total = "Total alerts: " + totalCount;
         final String counts = "Payloads: ELF " + elfCount
                 + " | ZIP/APK " + zipCount
-                + " | DEX " + dexCount;
+                + " | DEX " + dexCount
+                + "\nPrivilege escalation: " + privescCount;
         final boolean empty = totalCount == 0;
 
         runOnUiThread(() -> {
@@ -165,6 +180,12 @@ public class MainActivity extends AppCompatActivity {
     private void recordAlert(String alert) {
         totalCount++;
 
+        if (alert.startsWith(PRIVESC_PREFIX)) {
+            privescCount++;
+            addDisplayed(formatPrivEsc(alert));
+            return;
+        }
+
         Matcher type = ALERT_TYPE.matcher(alert);
         if (type.find()) {
             switch (type.group(1)) {
@@ -182,10 +203,62 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        displayedEvents.addLast(alert);
+        addDisplayed(formatAlert(alert));
+    }
+
+    private void addDisplayed(String text) {
+        displayedEvents.addLast(text);
         while (displayedEvents.size() > MAX_DISPLAYED) {
             displayedEvents.removeFirst();
         }
+    }
+
+    /** "[PRIVESC] shell (uid 2000) → root (uid 0)\n  pid 4567 · su" */
+    private String formatPrivEsc(String alert) {
+        Matcher m = PRIVESC_FIELDS.matcher(alert);
+        if (!m.find()) {
+            return alert;
+        }
+        int prev = Integer.parseInt(m.group(1));
+        int cur = Integer.parseInt(m.group(2));
+        return "[PRIVESC] " + labelForUid(prev) + " (uid " + prev + ") → "
+                + labelForUid(cur) + " (uid " + cur + ")"
+                + "\n  pid " + m.group(3) + " · " + m.group(4);
+    }
+
+    /** "[DEX] com.example.app (uid 10123)\n  pid 4567 · printf\n  /data/user/0/.../x.dex" */
+    private String formatAlert(String alert) {
+        Matcher m = ALERT_FIELDS.matcher(alert);
+        if (!m.find()) {
+            return alert;
+        }
+        int uid = Integer.parseInt(m.group(2));
+        return "[" + m.group(1) + "] " + labelForUid(uid) + " (uid " + uid + ")"
+                + "\n  pid " + m.group(3) + " · " + m.group(4)
+                + "\n  " + m.group(5);
+    }
+
+    private String labelForUid(int uid) {
+        String cached = uidLabels.get(uid);
+        if (cached != null) {
+            return cached;
+        }
+        String label;
+        if (uid == 0) {
+            label = "root";
+        } else {
+            PackageManager pm = getPackageManager();
+            String[] packages = pm.getPackagesForUid(uid);
+            if (packages != null && packages.length == 1) {
+                label = packages[0];
+            } else {
+                // Không có package, hoặc shared UID nhiều package (vd. 1000) -> tên shared UID.
+                String name = pm.getNameForUid(uid);
+                label = name != null ? name : (uid < FIRST_APP_UID ? "system" : "unknown app");
+            }
+        }
+        uidLabels.put(uid, label);
+        return label;
     }
 
     private void setButtonsEnabled(boolean start, boolean stop) {

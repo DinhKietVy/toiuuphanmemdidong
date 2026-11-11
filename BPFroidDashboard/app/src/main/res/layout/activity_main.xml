@@ -81,7 +81,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="22dp"
-            android:text="Dropper Detection Alerts"
+            android:text="Security Alerts"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:textStyle="bold" />
