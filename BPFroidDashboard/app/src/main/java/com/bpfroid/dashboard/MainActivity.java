@@ -9,6 +9,8 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -16,13 +18,14 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.SecureRandom;
 import java.util.ArrayDeque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -35,6 +38,17 @@ public class MainActivity extends AppCompatActivity {
     private static final int POLL_TIMEOUT_MS = 6000;
     // STOP có thể chờ engine thoát và dọn kprobe tới vài giây.
     private static final int CONTROL_TIMEOUT_MS = 15000;
+
+    // Chu kỳ poll: dày khi engine chạy, thưa khi engine dừng hoặc mất kết nối bridge.
+    private static final long POLL_RUNNING_SEC = 2;
+    private static final long POLL_IDLE_SEC = 10;
+    // Bridge trả tối đa chừng này cảnh báo mỗi lần POLL (POLL_BATCH trong bridge handler);
+    // nhận đủ số này nghĩa là còn cảnh báo chưa lấy, nên POLL tiếp ngay.
+    private static final int POLL_BATCH = 500;
+    private static final int MAX_CATCH_UP_ROUNDS = 20;
+
+    // Token điều khiển: chỉ app này (và bridge chạy root) đọc được file trong filesDir.
+    private static final String TOKEN_FILE = "bridge.token";
 
     private static final int MAX_DISPLAYED = 30;
     private static final Pattern ALERT_LINE =
@@ -63,9 +77,16 @@ public class MainActivity extends AppCompatActivity {
     private final ScheduledExecutorService executor =
             Executors.newSingleThreadScheduledExecutor();
 
-    // Khóa "<run id>:<số dòng log>" định danh duy nhất một cảnh báo,
-    // nên hai lần ghi giống hệt nhau vẫn được đếm riêng.
-    private final Set<String> seenKeys = new HashSet<>();
+    // Vị trí đã đọc trong file cảnh báo của bridge: lần chạy engine (run id) + số dòng cuối.
+    // POLL chỉ xin phần sau vị trí này, nên không sót cảnh báo và không tải lại phần cũ.
+    private String trackedRunId = null;
+    private int lastLine = 0;
+    private String token = null;
+
+    // Poll chỉ chạy khi Activity đang hiển thị (onStart..onStop).
+    private volatile boolean polling = false;
+    private ScheduledFuture<?> pollTask = null;
+
     private final ArrayDeque<String> displayedEvents = new ArrayDeque<>();
     private int totalCount = 0;
     private int elfCount = 0;
@@ -91,13 +112,76 @@ public class MainActivity extends AppCompatActivity {
         txtEngineStatus.setText("Connecting to BPFroid bridge...");
         txtEventCount.setText("Total alerts: 0");
         txtExecveCount.setText("Payloads: ELF 0 | ZIP/APK 0 | DEX 0");
-        txtEvents.setText("Waiting for dropper alerts...");
+        txtEvents.setText("Waiting for security alerts...");
 
         btnStart.setOnClickListener(v -> runControl("START"));
         btnStop.setOnClickListener(v -> runControl("STOP"));
 
-        // Kiểm tra engine và cảnh báo mỗi 2 giây (một kết nối POLL mỗi lần).
-        executor.scheduleWithFixedDelay(this::refreshDashboard, 0, 2, TimeUnit.SECONDS);
+        executor.execute(this::loadOrCreateToken);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        // App hiện lên: poll ngay rồi lặp lại theo chu kỳ.
+        polling = true;
+        executor.execute(() -> {
+            cancelPollTask();
+            pollLoop();
+        });
+    }
+
+    @Override
+    protected void onStop() {
+        // App vào nền: dừng poll, không mở socket nào nữa cho tới khi app hiện lại.
+        polling = false;
+        executor.execute(this::cancelPollTask);
+        super.onStop();
+    }
+
+    /** Chạy trên executor: poll một lần rồi tự hẹn lần sau, nhịp tùy trạng thái engine. */
+    private void pollLoop() {
+        if (!polling || activityDestroyed) {
+            return;
+        }
+        boolean running = refreshDashboard();
+        if (polling && !activityDestroyed) {
+            long delay = running ? POLL_RUNNING_SEC : POLL_IDLE_SEC;
+            pollTask = executor.schedule(this::pollLoop, delay, TimeUnit.SECONDS);
+        }
+    }
+
+    private void cancelPollTask() {
+        if (pollTask != null) {
+            pollTask.cancel(false);
+            pollTask = null;
+        }
+    }
+
+    private void loadOrCreateToken() {
+        File file = new File(getFilesDir(), TOKEN_FILE);
+        try {
+            if (file.exists()) {
+                byte[] data = Files.readAllBytes(file.toPath());
+                String existing = new String(data, StandardCharsets.UTF_8).trim();
+                if (existing.matches("[0-9a-f]{64}")) {
+                    token = existing;
+                    return;
+                }
+            }
+            byte[] random = new byte[32];
+            new SecureRandom().nextBytes(random);
+            StringBuilder hex = new StringBuilder();
+            for (byte b : random) {
+                hex.append(String.format("%02x", b));
+            }
+            try (FileOutputStream out = openFileOutput(TOKEN_FILE, MODE_PRIVATE)) {
+                out.write(hex.toString().getBytes(StandardCharsets.UTF_8));
+            }
+            token = hex.toString();
+        } catch (IOException e) {
+            token = null;
+        }
     }
 
     private void runControl(String command) {
@@ -105,8 +189,13 @@ public class MainActivity extends AppCompatActivity {
         txtEngineStatus.setText(command + "...");
 
         executor.execute(() -> {
+            if (token == null) {
+                loadOrCreateToken();
+            }
             try {
-                String response = sendCommand(command, CONTROL_TIMEOUT_MS);
+                String response = token == null
+                        ? "ERROR: cannot create bridge token"
+                        : sendCommand(command + " " + token, CONTROL_TIMEOUT_MS);
                 runOnUiThread(() -> txtEngineStatus.setText(response));
             } catch (Exception e) {
                 runOnUiThread(() ->
@@ -116,38 +205,63 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void refreshDashboard() {
+    /** Chạy trên executor. Trả về true nếu engine đang chạy. */
+    private boolean refreshDashboard() {
         if (activityDestroyed) {
-            return;
+            return false;
         }
 
-        String response;
-        try {
-            response = sendCommand("POLL", POLL_TIMEOUT_MS);
-        } catch (Exception e) {
-            runOnUiThread(() -> {
-                txtEngineStatus.setText("BRIDGE DISCONNECTED\n" + e.getMessage());
-                setButtonsEnabled(true, true);
-            });
-            return;
-        }
-
-        // Dòng 1: trạng thái; "RUN:<id>": mã lần chạy; còn lại: "<số dòng>:<cảnh báo>".
-        String[] lines = response.split("\\r?\\n");
-        String status = lines.length > 0 ? lines[0].trim() : "";
-        String runId = "0";
+        String status = "";
         boolean changed = false;
 
-        for (int i = 1; i < lines.length; i++) {
-            String line = lines[i].trim();
-            if (line.startsWith("RUN:")) {
-                runId = line.substring("RUN:".length());
-                continue;
+        // Lấy hết phần cảnh báo mới; mỗi vòng bridge trả tối đa POLL_BATCH dòng.
+        for (int round = 0; round < MAX_CATCH_UP_ROUNDS; round++) {
+            String request = trackedRunId == null
+                    ? "POLL"
+                    : "POLL " + trackedRunId + " " + lastLine;
+            String response;
+            try {
+                response = sendCommand(request, POLL_TIMEOUT_MS);
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    txtEngineStatus.setText("BRIDGE DISCONNECTED\n" + e.getMessage());
+                    setButtonsEnabled(true, true);
+                });
+                return false;
             }
-            Matcher m = ALERT_LINE.matcher(line);
-            if (m.matches() && seenKeys.add(runId + ":" + m.group(1))) {
-                recordAlert(m.group(2));
-                changed = true;
+
+            // Dòng 1: trạng thái; "RUN:<id>": mã lần chạy; còn lại: "<số dòng>:<cảnh báo>".
+            String[] lines = response.split("\\r?\\n");
+            status = lines.length > 0 ? lines[0].trim() : "";
+            int received = 0;
+
+            for (int i = 1; i < lines.length; i++) {
+                String line = lines[i].trim();
+                if (line.startsWith("RUN:")) {
+                    String runId = line.substring("RUN:".length());
+                    if (!runId.equals(trackedRunId)) {
+                        // Engine vừa START lại: file cảnh báo mới, đọc lại từ dòng 1.
+                        // Số đếm trên màn hình vẫn cộng dồn.
+                        trackedRunId = runId;
+                        lastLine = 0;
+                    }
+                    continue;
+                }
+                Matcher m = ALERT_LINE.matcher(line);
+                if (!m.matches()) {
+                    continue;
+                }
+                received++;
+                int lineNo = Integer.parseInt(m.group(1));
+                if (lineNo > lastLine) {
+                    lastLine = lineNo;
+                    recordAlert(m.group(2));
+                    changed = true;
+                }
+            }
+
+            if (received < POLL_BATCH) {
+                break;
             }
         }
 
@@ -172,9 +286,10 @@ public class MainActivity extends AppCompatActivity {
                 txtExecveCount.setText(counts);
                 txtEvents.setText(events);
             } else if (empty) {
-                txtEvents.setText("No dropper alerts detected.");
+                txtEvents.setText("No security alerts detected.");
             }
         });
+        return running;
     }
 
     private void recordAlert(String alert) {

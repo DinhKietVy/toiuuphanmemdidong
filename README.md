@@ -61,9 +61,15 @@ Luồng hoạt động:
 
 1.  Android Emulator chạy ứng dụng **BPFroid Dashboard**.
 2.  Bridge TCP lắng nghe tại `127.0.0.1:8765`.
-3.  Dashboard gửi `POLL` (trạng thái + cảnh báo trong một kết nối) mỗi
-    2 giây, và `START`/`STOP` khi bấm nút. Bridge còn hỗ trợ `STATUS`,
-    `LOGS` để kiểm tra thủ công.
+3.  Dashboard gửi `POLL` (trạng thái + **chỉ các cảnh báo mới** kể từ
+    lần trước) mỗi 2 giây khi engine chạy, 10 giây khi engine dừng, và
+    **chỉ khi app đang hiển thị** (app vào nền thì ngừng poll, tiết kiệm
+    pin/CPU). `START`/`STOP` được gửi khi bấm nút và phải kèm **token**:
+    app sinh token ngẫu nhiên trong thư mục dữ liệu riêng
+    (`/data/user/0/com.bpfroid.dashboard/files/bridge.token`), chỉ app
+    đó và bridge (root) đọc được, nên app khác không thể tắt engine qua
+    cổng localhost. Bridge còn hỗ trợ `STATUS`, `LOGS` (không cần token)
+    để kiểm tra thủ công.
 4.  Bridge khởi chạy `tracee-android --trace event=write_alert --trace
     event=uid_changed_alert`, tức hai signature mà paper BPFroid đánh
     giá, chạy trên **toàn hệ thống** (mọi app, mọi thư mục):
@@ -186,9 +192,19 @@ dòng nào chứa `vfs_write`.
 
 ### Bước 4 -- Khởi động BPFroid Engine
 
+Cách đơn giản nhất: mở app Dashboard và bấm **START**.
+
+Muốn START từ PowerShell thì cần token. Token được tạo khi app
+Dashboard **mở lần đầu**, nên hãy mở app một lần trước:
+
 ``` powershell
-adb shell "echo START | toybox nc -w 10 127.0.0.1 8765"
+$TOKEN = (adb shell "cat /data/user/0/com.bpfroid.dashboard/files/bridge.token").Trim()
+adb shell "echo START $TOKEN | toybox nc -w 10 127.0.0.1 8765"
 ```
+
+Biến `$TOKEN` dùng tiếp cho các lệnh `STOP` bên dưới trong cùng cửa sổ
+PowerShell. Gửi `START`/`STOP` không kèm hoặc sai token sẽ nhận
+`ERROR:UNAUTHORIZED`.
 
 Kết quả mong đợi:
 
@@ -275,6 +291,7 @@ Bảng tóm tắt kết quả mong đợi (đã chạy thử trên emulator):
   P3   Mở app bình thường (đối chứng)        Không có
   L1   Né signature: tách magic bytes        Không có (hạn chế)
   L2   Né signature: chép bằng kernel        Không có (hạn chế)
+  S1   Malware tắt bộ giám sát qua bridge    `ERROR:UNAUTHORIZED`, engine vẫn chạy
 
 Sau mỗi lệnh, chờ 1--2 giây rồi xem Dashboard hoặc chạy
 `adb shell "echo LOGS | toybox nc -w 5 127.0.0.1 8765"`.
@@ -424,6 +441,31 @@ adb shell "run-as $A sh -c 'cp $APK files/copy.apk'"
 Muốn bịt các lỗ này cần hook thêm (ví dụ `vfs_copy_file_range`,
 `do_splice_direct`) hoặc kiểm tra header file khi đóng/thực thi file.
 
+### D. Tấn công vào chính bộ giám sát
+
+#### S1 -- Malware cố tắt engine qua cổng bridge
+
+Bridge nghe ở `127.0.0.1:8765`, và **mọi app** có quyền INTERNET đều kết
+nối được tới cổng localhost. Nếu không có xác thực, malware chỉ cần gửi
+`STOP` để tắt BPFroid rồi mới thả payload (vi phạm yêu cầu R1 "ranh giới
+bảo mật mạnh" của paper). Ở đây người dùng `shell` (UID 2000, không phải
+root) đóng vai app độc:
+
+``` powershell
+adb shell "su 2000 cat /data/user/0/com.bpfroid.dashboard/files/bridge.token"
+adb shell "su 2000 sh -c 'echo STOP | toybox nc -w 15 127.0.0.1 8765'"
+adb shell "su 2000 sh -c 'echo STOP deadbeef | toybox nc -w 15 127.0.0.1 8765'"
+adb shell "echo STATUS | toybox nc -w 3 127.0.0.1 8765"
+```
+
+-   **Lệnh làm gì:** (1) thử đọc token của Dashboard, (2) gửi `STOP`
+    không token, (3) gửi `STOP` với token đoán bừa, (4) kiểm tra engine.
+-   **Kết quả:** (1) `Permission denied`, vì token nằm trong thư mục riêng
+    của app Dashboard; (2), (3) `ERROR:UNAUTHORIZED`; (4) vẫn
+    `RUNNING:<PID>`.
+-   **Ý nghĩa:** chỉ app Dashboard (và root) điều khiển được engine. Trước
+    khi có token, lệnh (2) đã tắt được engine.
+
 ### Dọn file thử nghiệm
 
 ``` powershell
@@ -489,7 +531,7 @@ adb shell "run-as com.bpfroid.dashboard rm -f files/after-restart.so"
 Khi kết thúc, nhấn **STOP** trên Dashboard hoặc chạy:
 
 ``` powershell
-adb shell "echo STOP | toybox nc -w 3 127.0.0.1 8765"
+adb shell "echo STOP $TOKEN | toybox nc -w 15 127.0.0.1 8765"
 ```
 
 Xác nhận:
@@ -512,6 +554,11 @@ Kết quả mong đợi: `STOPPED`.
 
   Dashboard báo `BRIDGE DISCONNECTED` Kiểm tra listener bằng lệnh STATUS; nếu
                                       cần, khởi động lại listener.
+
+  START/STOP trả                      Gửi kèm token (Bước 4). Chưa có file
+  `ERROR:UNAUTHORIZED`                token thì mở app Dashboard một lần.
+                                      Cài lại app (xóa dữ liệu) sẽ tạo
+                                      token mới: đọc lại `$TOKEN`.
 
   START trả                           Xem
   `ERROR:ENGINE_NOT_STARTED`          `/data/local/tmp/bpfroid-engine.log`;
