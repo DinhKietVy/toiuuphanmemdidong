@@ -22,7 +22,6 @@ data/raw/malware/*.apk
 
 # Processed intermediate files (regenerated from raw data)
 data/processed/extracted/
-data/processed/dataset/*.npy
 
 # Logs
 *.log
