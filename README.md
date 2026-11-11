@@ -47,3 +47,312 @@ Repository này hiện thực hóa một pipeline thử nghiệm theo cùng đ�
 - Phân tích tĩnh có thể bỏ sót hành vi chỉ xuất hiện khi chạy, mã bị đóng gói/làm rối, hoặc đặc trưng nằm ngoài dictionary của mô hình.
 - Nhãn và độ tin cậy là dự đoán của mô hình, không phải kết luận chắc chắn APK an toàn hay độc hại.
 - Hãy chỉ phân tích APK từ nguồn phù hợp và xác minh kết quả bằng các phương pháp độc lập khi cần.
+
+
+
+# BPFroid Android Demo -- Hướng dẫn chạy trên Windows PowerShell
+
+Tài liệu này hướng dẫn khởi động lại demo BPFroid sau khi bật máy và
+trình diễn luồng phát hiện payload trên Android Emulator.
+
+## 1. Mô hình demo
+
+Luồng hoạt động:
+
+1.  Android Emulator chạy ứng dụng **BPFroid Dashboard**.
+2.  Bridge TCP lắng nghe tại `127.0.0.1:8765`.
+3.  Dashboard gửi các lệnh `STATUS`, `START`, `STOP`, `LOGS` đến Bridge.
+4.  Bridge khởi chạy `tracee-android`.
+5.  Tracee theo dõi sự kiện ghi file và kiểm tra magic bytes trong thư
+    mục: `/data/local/tmp/dropper-demo/`
+6.  Dashboard hiển thị các cảnh báo ELF, ZIP/APK và DEX.
+
+> Các file tạo trong phần kiểm thử chỉ là payload giả lập chứa magic
+> bytes, không phải APK/DEX hoàn chỉnh và không thực thi mã độc.
+
+## 2. Điều kiện trước khi demo
+
+-   Đã mở Android Emulator có quyền root.
+-   Đã cài ứng dụng BPFroid Dashboard.
+-   Các file đã được triển khai lên emulator:
+    -   `/data/local/tmp/tracee-android`
+    -   `/data/local/tmp/tracee.bpf.dev.o`
+    -   `/data/local/tmp/bpfroid-bridge-handler.sh`
+-   Bridge handler đã được cấu hình dùng cổng `8765`.
+-   Engine đã được build và hoạt động thành công trước đó.
+
+Nếu emulator chưa chạy, hãy mở emulator từ Android Studio trước khi chạy
+các lệnh bên dưới.
+
+## 3. Khởi động demo -- thực hiện theo thứ tự
+
+Mở **Windows PowerShell**.
+
+### Bước 1 -- Kiểm tra ADB và emulator
+
+``` powershell
+adb devices
+```
+
+Đảm bảo emulator xuất hiện với trạng thái `device`.
+
+Kiểm tra quyền root:
+
+``` powershell
+adb shell "id"
+```
+
+Demo hiện tại cần quyền `uid=0(root)`. Nếu emulator chưa cấp root, hãy
+xử lý quyền root trước khi tiếp tục.
+
+### Bước 2 -- Khởi động Bridge listener
+
+Trước tiên, kiểm tra Bridge:
+
+``` powershell
+adb shell "echo STATUS | toybox nc -w 3 127.0.0.1 8765"
+```
+
+Nếu nhận được `STOPPED` hoặc `RUNNING:<PID>`, Bridge đang phản hồi;
+chuyển sang Bước 3.
+
+Nếu không nhận được phản hồi, khởi động listener:
+
+``` powershell
+adb shell "nohup toybox nc -s 127.0.0.1 -p 8765 -L /system/bin/sh /data/local/tmp/bpfroid-bridge-handler.sh >/data/local/tmp/bpfroid-bridge.log 2>&1 </dev/null &"
+Start-Sleep -Seconds 2
+adb shell "echo STATUS | toybox nc -w 3 127.0.0.1 8765"
+```
+
+Kết quả mong đợi là `STOPPED` hoặc `RUNNING:<PID>`, không phải lỗi kết
+nối.
+
+> Chỉ khởi động listener khi lệnh STATUS không phản hồi. Không tạo thêm
+> listener nếu Bridge đã hoạt động.
+
+### Bước 3 -- Dọn kprobe cũ nếu lần chạy trước bị dừng bất thường
+
+Tracee có thể không khởi động nếu kprobe `pvfs_write` còn tồn tại từ lần
+chạy trước. Chạy lệnh dọn event cũ sau đây trước khi START:
+
+``` powershell
+adb shell "if [ -e /sys/kernel/tracing/kprobe_events ]; then echo '-:kprobes/pvfs_write' > /sys/kernel/tracing/kprobe_events; elif [ -e /sys/kernel/debug/tracing/kprobe_events ]; then echo '-:kprobes/pvfs_write' > /sys/kernel/debug/tracing/kprobe_events; else echo TRACEFS_NOT_FOUND; fi"
+```
+
+Lệnh này chỉ xóa event kprobe có tên `kprobes/pvfs_write` nếu nó tồn
+tại. Nếu hệ thống báo `TRACEFS_NOT_FOUND`, kiểm tra cấu hình tracefs
+trước khi tiếp tục.
+
+### Bước 4 -- Khởi động BPFroid Engine
+
+``` powershell
+adb shell "echo START | toybox nc -w 10 127.0.0.1 8765"
+```
+
+Kết quả mong đợi:
+
+``` text
+OK:RUNNING:<PID>
+```
+
+Kiểm tra thêm:
+
+``` powershell
+adb shell "pidof tracee-android"
+adb shell "echo STATUS | toybox nc -w 3 127.0.0.1 8765"
+```
+
+Nếu nhận `ERROR:ENGINE_NOT_STARTED`, xem log:
+
+``` powershell
+adb shell "tail -n 60 /data/local/tmp/bpfroid-engine.log"
+```
+
+Một lỗi từng gặp là:
+
+``` text
+failed to add kprobe 'p:kprobes/pvfs_write vfs_write': -17
+```
+
+Nếu gặp lại, chạy lại Bước 3 rồi thử START một lần nữa. Nếu vẫn lỗi, giữ
+nguyên log để xử lý; không build lại app ngay.
+
+### Bước 5 -- Mở ứng dụng Dashboard
+
+Mở **BPFroid Dashboard** trên emulator.
+
+Kiểm tra: - Engine Status: `RUNNING` - Dashboard không hiển thị
+`BRIDGE DISCONNECTED`. - Các nút START và STOP có thể thao tác.
+
+Dashboard tự làm mới trạng thái và danh sách cảnh báo định kỳ.
+
+## 4. Trình diễn phát hiện payload
+
+Mở PowerShell và chạy từng bài kiểm thử. Engine phải đang ở trạng thái
+RUNNING.
+
+### Test 1 -- ELF
+
+``` powershell
+adb shell "mkdir -p /data/local/tmp/dropper-demo"
+adb shell "printf '\177ELF\001\001\001\000' > /data/local/tmp/dropper-demo/demo-elf.bin"
+Start-Sleep -Seconds 2
+```
+
+Cảnh báo mong đợi có dạng:
+
+``` text
+BPFROID_DROPPER_ALERT type=ELF pid=<PID> path=/data/local/tmp/dropper-demo/demo-elf.bin
+```
+
+### Test 2 -- ZIP/APK
+
+``` powershell
+adb shell "printf 'PK\003\004\024\000\000\000' > /data/local/tmp/dropper-demo/demo-apk.apk"
+Start-Sleep -Seconds 2
+```
+
+Cảnh báo mong đợi:
+
+``` text
+BPFROID_DROPPER_ALERT type=ZIP/APK pid=<PID> path=/data/local/tmp/dropper-demo/demo-apk.apk
+```
+
+### Test 3 -- DEX
+
+``` powershell
+adb shell "printf 'dex\n035\000' > /data/local/tmp/dropper-demo/demo-dex.dex"
+Start-Sleep -Seconds 2
+```
+
+Cảnh báo mong đợi:
+
+``` text
+BPFROID_DROPPER_ALERT type=DEX pid=<PID> path=/data/local/tmp/dropper-demo/demo-dex.dex
+```
+
+### Kiểm tra danh sách cảnh báo từ Bridge
+
+``` powershell
+adb shell "echo LOGS | toybox nc -w 5 127.0.0.1 8765"
+```
+
+Kết quả sẽ chứa các dòng `BPFROID_DROPPER_ALERT` đã phát hiện.
+
+### Kiểm tra trên Dashboard
+
+Chờ tối đa vài giây để Dashboard làm mới. Với ba payload vừa tạo, kết
+quả mong đợi:
+
+-   Total alerts: 3
+-   ELF: 1
+-   ZIP/APK: 1
+-   DEX: 1
+-   Danh sách sự kiện hiển thị đường dẫn và PID tương ứng.
+
+Số lượng có thể lớn hơn nếu bạn chạy lại lệnh tạo payload nhiều lần, vì
+mỗi lần ghi có thể tạo một cảnh báo mới.
+
+## 5. Demo chức năng STOP / START
+
+Có thể trình diễn trực tiếp bằng các nút trên Dashboard.
+
+1.  Nhấn **STOP**.
+2.  Kiểm tra:
+
+``` powershell
+adb shell "echo STATUS | toybox nc -w 3 127.0.0.1 8765"
+```
+
+Kết quả mong đợi:
+
+``` text
+STOPPED
+```
+
+3.  Nhấn **START**.
+4.  Kiểm tra lại:
+
+``` powershell
+adb shell "echo STATUS | toybox nc -w 3 127.0.0.1 8765"
+```
+
+Kết quả mong đợi:
+
+``` text
+RUNNING:<PID>
+```
+
+5.  Tạo một payload mới để xác nhận Engine tiếp tục phát hiện:
+
+``` powershell
+adb shell "printf '\177ELF\001\001\001\000' > /data/local/tmp/dropper-demo/after-restart.bin"
+Start-Sleep -Seconds 2
+adb shell "echo LOGS | toybox nc -w 5 127.0.0.1 8765"
+```
+
+## 6. Tắt demo
+
+Khi kết thúc, nhấn **STOP** trên Dashboard hoặc chạy:
+
+``` powershell
+adb shell "echo STOP | toybox nc -w 3 127.0.0.1 8765"
+```
+
+Xác nhận:
+
+``` powershell
+adb shell "echo STATUS | toybox nc -w 3 127.0.0.1 8765"
+```
+
+Kết quả mong đợi: `STOPPED`.
+
+## 7. Xử lý lỗi nhanh
+
+  ---------------------------------------------------------------------------
+  Hiện tượng                          Cách xử lý
+  ----------------------------------- ---------------------------------------
+  `adb devices` không thấy emulator   Mở emulator, kiểm tra ADB rồi chạy lại
+                                      `adb devices`.
+
+  Bridge không phản hồi               Khởi động listener theo Bước 2.
+
+  Dashboard báo `BRIDGE DISCONNECTED` Kiểm tra listener bằng lệnh STATUS; nếu
+                                      cần, khởi động lại listener.
+
+  START trả                           Xem
+  `ERROR:ENGINE_NOT_STARTED`          `/data/local/tmp/bpfroid-engine.log`;
+                                      nếu có lỗi kprobe `-17`, chạy Bước 3
+                                      rồi START lại.
+
+  Engine RUNNING nhưng không có cảnh  Kiểm tra đã ghi file vào đúng thư mục
+  báo                                 `/data/local/tmp/dropper-demo/` và xem
+                                      output LOGS.
+
+  Dashboard chưa cập nhật cảnh báo    Đợi chu kỳ refresh tiếp theo; đối chiếu
+                                      trực tiếp bằng lệnh LOGS.
+  ---------------------------------------------------------------------------
+
+Các lệnh xem log hữu ích:
+
+``` powershell
+adb shell "tail -n 60 /data/local/tmp/bpfroid-engine.log"
+adb shell "cat /data/local/tmp/bpfroid-bridge.log"
+adb shell "pidof tracee-android"
+```
+
+## 8. Kịch bản demo ngắn khi thuyết trình
+
+1.  Mở emulator và BPFroid Dashboard.
+2.  Khởi động Bridge và Engine theo Bước 2--4.
+3.  Cho người xem thấy trạng thái Engine `RUNNING`.
+4.  Tạo lần lượt payload ELF, ZIP/APK và DEX.
+5.  Cho người xem thấy các cảnh báo xuất hiện trên Dashboard.
+6.  Nhấn STOP để chứng minh có thể dừng Engine.
+7.  Nhấn START, tạo payload mới và chứng minh Engine tiếp tục phát hiện.
+8.  Kết thúc bằng STOP.
+
+**Lưu ý:** Demo hiện tại kiểm tra dấu hiệu ghi file trong thư mục thử
+nghiệm và nhận diện định dạng dựa trên magic bytes. Đây là bản trình
+diễn cơ chế phát hiện, không nên mô tả là đã phân tích đầy đủ hành vi
+hoặc xác định payload độc hại chỉ dựa trên định dạng file.
