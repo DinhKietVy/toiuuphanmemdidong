@@ -61,7 +61,9 @@ Luồng hoạt động:
 
 1.  Android Emulator chạy ứng dụng **BPFroid Dashboard**.
 2.  Bridge TCP lắng nghe tại `127.0.0.1:8765`.
-3.  Dashboard gửi các lệnh `STATUS`, `START`, `STOP`, `LOGS` đến Bridge.
+3.  Dashboard gửi `POLL` (trạng thái + cảnh báo trong một kết nối) mỗi
+    2 giây, và `START`/`STOP` khi bấm nút. Bridge còn hỗ trợ `STATUS`,
+    `LOGS` để kiểm tra thủ công.
 4.  Bridge khởi chạy `tracee-android`.
 5.  Tracee theo dõi sự kiện ghi file và kiểm tra magic bytes trong thư
     mục: `/data/local/tmp/dropper-demo/`
@@ -80,6 +82,16 @@ Luồng hoạt động:
     -   `/data/local/tmp/bpfroid-bridge-handler.sh`
 -   Bridge handler đã được cấu hình dùng cổng `8765`.
 -   Engine đã được build và hoạt động thành công trước đó.
+
+Mã nguồn bridge handler nằm ở
+`BPFroidDashboard/bridge/bpfroid-bridge-handler.sh`. Sau khi sửa, triển
+khai lại (listener gọi script cho mỗi kết nối nên không cần khởi động
+lại listener):
+
+``` powershell
+adb push BPFroidDashboard\bridge\bpfroid-bridge-handler.sh /data/local/tmp/
+adb shell "chmod 755 /data/local/tmp/bpfroid-bridge-handler.sh"
+```
 
 Nếu emulator chưa chạy, hãy mở emulator từ Android Studio trước khi chạy
 các lệnh bên dưới.
@@ -130,18 +142,21 @@ nối.
 > Chỉ khởi động listener khi lệnh STATUS không phản hồi. Không tạo thêm
 > listener nếu Bridge đã hoạt động.
 
-### Bước 3 -- Dọn kprobe cũ nếu lần chạy trước bị dừng bất thường
+### Bước 3 -- Dọn kprobe cũ (thường không cần)
 
-Tracee có thể không khởi động nếu kprobe `pvfs_write` còn tồn tại từ lần
-chạy trước. Chạy lệnh dọn event cũ sau đây trước khi START:
+Tracee không tự gỡ kprobe khi bị dừng; nếu còn sót, START lần sau lỗi
+`-17`. Bridge handler đã tự dọn 4 kprobe `pvfs_write`, `rvfs_write`,
+`pvfs_writev`, `rvfs_writev` khi STOP và trước khi START, nên bước này
+chỉ cần khi engine bị dừng ngoài bridge (ví dụ emulator bị tắt ngang).
+Chỉ chạy khi engine đã dừng:
 
 ``` powershell
-adb shell "if [ -e /sys/kernel/tracing/kprobe_events ]; then echo '-:kprobes/pvfs_write' > /sys/kernel/tracing/kprobe_events; elif [ -e /sys/kernel/debug/tracing/kprobe_events ]; then echo '-:kprobes/pvfs_write' > /sys/kernel/debug/tracing/kprobe_events; else echo TRACEFS_NOT_FOUND; fi"
+adb shell "cat /sys/kernel/tracing/kprobe_events"
+adb shell "cd /sys/kernel/tracing && for e in pvfs_write rvfs_write pvfs_writev rvfs_writev; do echo -:kprobes/`$e >> kprobe_events; done"
 ```
 
-Lệnh này chỉ xóa event kprobe có tên `kprobes/pvfs_write` nếu nó tồn
-tại. Nếu hệ thống báo `TRACEFS_NOT_FOUND`, kiểm tra cấu hình tracefs
-trước khi tiếp tục.
+Lệnh thứ hai chỉ xóa 4 kprobe trên; sau đó lệnh thứ nhất phải không còn
+dòng nào chứa `vfs_write`.
 
 ### Bước 4 -- Khởi động BPFroid Engine
 
@@ -174,8 +189,9 @@ Một lỗi từng gặp là:
 failed to add kprobe 'p:kprobes/pvfs_write vfs_write': -17
 ```
 
-Nếu gặp lại, chạy lại Bước 3 rồi thử START một lần nữa. Nếu vẫn lỗi, giữ
-nguyên log để xử lý; không build lại app ngay.
+Bridge handler hiện đã tự dọn kprobe nên lỗi này không nên xuất hiện
+nữa. Nếu vẫn gặp, chạy Bước 3 rồi thử START một lần nữa. Nếu vẫn lỗi,
+giữ nguyên log để xử lý; không build lại app ngay.
 
 ### Bước 5 -- Mở ứng dụng Dashboard
 
@@ -251,7 +267,8 @@ quả mong đợi:
 -   Danh sách sự kiện hiển thị đường dẫn và PID tương ứng.
 
 Số lượng có thể lớn hơn nếu bạn chạy lại lệnh tạo payload nhiều lần, vì
-mỗi lần ghi có thể tạo một cảnh báo mới.
+mỗi lần ghi tạo một cảnh báo mới. Dashboard đếm cộng dồn qua các lần
+STOP/START cho tới khi app được mở lại.
 
 ## 5. Demo chức năng STOP / START
 
