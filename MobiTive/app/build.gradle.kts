@@ -39,8 +39,7 @@ dependencies {
     // TensorFlow Lite: chạy mô hình GRU
     implementation("org.tensorflow:tensorflow-lite:2.16.1")
 
-    // DEX parser
-    implementation("org.smali:dexlib2:2.5.2")
+    // DEX: parsed by analyzer/DexMethodTable (method_ids), no external library (M5).
 
     // APK and AndroidManifest parser
     implementation("net.dongliu:apk-parser:2.6.10")

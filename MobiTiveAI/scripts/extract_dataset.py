@@ -78,7 +78,8 @@ def extract_one_apk(apk_path, label):
     # 3. Extract DEX
     print("[DEX] Extracting...")
 
-    dex_features = extract_api_calls(dex_list)
+    # M5: đọc bảng method_ids trực tiếp từ APK (không duyệt bytecode).
+    dex_features = extract_api_calls(apk_path)
 
     # 4. Combine
     result = {
@@ -132,7 +133,7 @@ def extract_one_apk(apk_path, label):
         "intent_count": len(manifest_features["intents"]),
         "hardware_feature_count": len(manifest_features["hardware_features"]),
         "api_call_count": dex_features["unique_api_call_count"],
-        "invoke_instruction_count": dex_features["invoke_instruction_count"],
+        "method_ref_count": dex_features["method_ref_count"],
         "status": "success",
         "output_path": str(output_path)
     }
@@ -247,7 +248,7 @@ def process_dataset():
         "intent_count",
         "hardware_feature_count",
         "api_call_count",
-        "invoke_instruction_count",
+        "method_ref_count",
         "status",
         "output_path"
     ]

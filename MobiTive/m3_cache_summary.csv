@@ -1,0 +1,4 @@
+﻿cache_mode,samples,total_wall_ms_median,copy_apk_wall_ms_median,hash_apk_wall_ms_median,cache_read_wall_ms_median,cache_write_wall_ms_median,dex_wall_ms_median,inference_wall_ms_median,total_thread_cpu_ms_median,total_wall_ms_p95
+MISS,1,40061.557,2660.805,203.322,0.122,1288.215,31533.837,57.51,8430.469,40061.557
+HIT,4,2658.034,1812.216,252.203,181.925,,,22.091,256.507,2978.822
+FORCED,5,24910.209,1984.668,275.5,,78.985,21652.895,17.16,5873.229,32169.852

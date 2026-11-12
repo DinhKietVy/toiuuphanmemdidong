@@ -5,7 +5,10 @@
         android:allowBackup="false"
         android:label="MobiTive"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MobiTive">
+        android:theme="@style/Theme.MobiTive.M4">
+
+        <activity android:name="com.example.mobitive.m4.M4HistoryActivity"
+            android:exported="false" />
 
         <activity
             android:name="com.example.mobitive.MainActivity"

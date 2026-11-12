@@ -1,0 +1,305 @@
+{
+  "context": {
+    "tensorflow_version": "2.15.1",
+    "seed": 42,
+    "dictionary_sha256": "e2769d1cccaa5d7032409ebc2786bda4815af0228dfa4e919a45c3bdd38fb89c",
+    "dataset_files": {
+      "train": {
+        "samples": 482,
+        "benign": 323,
+        "malware": 159,
+        "X_dtype": "float32",
+        "y_dtype": "int64",
+        "X_sha256": "5d945d129e4a1d548a0e95860c2b92e27dab14f2411ac5840b17b85dc225f2a8",
+        "y_sha256": "f82752804ba5da2af85b69525224352e50d5660cf3a78203045c667cb6a6103c",
+        "X_shape": [
+          482,
+          2915
+        ],
+        "y_shape": [
+          482
+        ]
+      },
+      "validation": {
+        "samples": 120,
+        "benign": 86,
+        "malware": 34,
+        "X_dtype": "float32",
+        "y_dtype": "int64",
+        "X_sha256": "f5b74805bfb28df5a3f82f326f586c48145a4200583f951fff89c29ad761da08",
+        "y_sha256": "ae82abedc21fc807b0ca4da6e4142792d421459f37686db3ad9b0a327ca5e4eb",
+        "X_shape": [
+          120,
+          2915
+        ],
+        "y_shape": [
+          120
+        ]
+      },
+      "test": {
+        "samples": 112,
+        "benign": 88,
+        "malware": 24,
+        "X_dtype": "float32",
+        "y_dtype": "int64",
+        "X_sha256": "349bcfdb2ec0cb4432dc6109db7a2877e03289ca4eaf142ec6ad5be6a1e06423",
+        "y_sha256": "b8d5ab79a5fb67b1dd5f0b772f9ea1c7638d2689266b721039faf146be9818f3",
+        "X_shape": [
+          112,
+          2915
+        ],
+        "y_shape": [
+          112
+        ]
+      }
+    },
+    "test_samples": 112,
+    "baseline_keras_metrics": {
+      "samples": 112,
+      "accuracy": 0.9821428571428571,
+      "precision_malware": 1.0,
+      "recall_malware": 0.9166666666666666,
+      "f1_malware": 0.9565217391304348,
+      "false_negatives": 2,
+      "false_positives": 0,
+      "confusion_matrix": [
+        [
+          88,
+          0
+        ],
+        [
+          2,
+          22
+        ]
+      ]
+    },
+    "gru64_training": {
+      "training_epochs": 27,
+      "best_validation_loss": 0.09571746736764908,
+      "best_validation_accuracy": 0.9750000238418579,
+      "class_weights": {
+        "0": 0.7461300309597523,
+        "1": 1.5157232704402517
+      },
+      "keras_file": "D:\\toiuuphanmemdidong\\MobiTiveAI\\artifacts\\models\\mobitive_gru64_best.keras"
+    },
+    "mlp64_training": {
+      "training_epochs": 40,
+      "best_validation_loss": 0.05161934345960617,
+      "best_validation_accuracy": 0.9750000238418579,
+      "class_weights": {
+        "0": 0.7461300309597523,
+        "1": 1.5157232704402517
+      },
+      "keras_file": "D:\\toiuuphanmemdidong\\MobiTiveAI\\artifacts\\models\\mobitive_mlp64_best.keras"
+    }
+  },
+  "models": {
+    "gru128_fp32": {
+      "samples": 112,
+      "accuracy": 0.9821428571428571,
+      "precision_malware": 1.0,
+      "recall_malware": 0.9166666666666666,
+      "f1_malware": 0.9565217391304348,
+      "false_negatives": 2,
+      "false_positives": 0,
+      "confusion_matrix": [
+        [
+          88,
+          0
+        ],
+        [
+          2,
+          22
+        ]
+      ],
+      "input_shape": [
+        1,
+        1,
+        2915
+      ],
+      "output_shape": [
+        1,
+        2
+      ],
+      "input_dtype": "float32",
+      "output_dtype": "float32",
+      "tensor_dtype_counts": {
+        "float32": 33,
+        "int32": 9
+      },
+      "desktop_tflite_median_ms": 0.0543,
+      "desktop_tflite_p95_ms": 0.08599499999999999,
+      "model_file": "D:\\toiuuphanmemdidong\\MobiTiveAI\\artifacts\\models\\mobitive_gru.tflite",
+      "size_bytes": 4684840,
+      "sha256": "63a429728fe760d30d72b8c029c86c0043df88ff4f688c0931fa9a6dfdc55f74",
+      "same_labels_as_keras_gru128": 112,
+      "max_malware_probability_delta_vs_keras_gru128": 8.195638656616211e-08
+    },
+    "gru128_fp16": {
+      "samples": 112,
+      "accuracy": 0.9821428571428571,
+      "precision_malware": 1.0,
+      "recall_malware": 0.9166666666666666,
+      "f1_malware": 0.9565217391304348,
+      "false_negatives": 2,
+      "false_positives": 0,
+      "confusion_matrix": [
+        [
+          88,
+          0
+        ],
+        [
+          2,
+          22
+        ]
+      ],
+      "input_shape": [
+        1,
+        1,
+        2915
+      ],
+      "output_shape": [
+        1,
+        2
+      ],
+      "input_dtype": "float32",
+      "output_dtype": "float32",
+      "tensor_dtype_counts": {
+        "float32": 33,
+        "int32": 9,
+        "float16": 8
+      },
+      "desktop_tflite_median_ms": 0.0536,
+      "desktop_tflite_p95_ms": 0.06021499999999999,
+      "model_file": "D:\\toiuuphanmemdidong\\MobiTiveAI\\artifacts\\models\\mobitive_gru_fp16.tflite",
+      "size_bytes": 2346936,
+      "sha256": "0552eec5220a8d5886c792949f1837dde2ef9a6ab3245a888d724daae5498bfb",
+      "same_labels_as_keras_gru128": 112,
+      "max_malware_probability_delta_vs_keras_gru128": 5.148351192474365e-05
+    },
+    "gru128_dynamic": {
+      "samples": 112,
+      "accuracy": 0.9821428571428571,
+      "precision_malware": 1.0,
+      "recall_malware": 0.9166666666666666,
+      "f1_malware": 0.9565217391304348,
+      "false_negatives": 2,
+      "false_positives": 0,
+      "confusion_matrix": [
+        [
+          88,
+          0
+        ],
+        [
+          2,
+          22
+        ]
+      ],
+      "input_shape": [
+        1,
+        1,
+        2915
+      ],
+      "output_shape": [
+        1,
+        2
+      ],
+      "input_dtype": "float32",
+      "output_dtype": "float32",
+      "tensor_dtype_counts": {
+        "float32": 31,
+        "int32": 9,
+        "int8": 2
+      },
+      "desktop_tflite_median_ms": 0.0993,
+      "desktop_tflite_p95_ms": 0.14637999999999987,
+      "model_file": "D:\\toiuuphanmemdidong\\MobiTiveAI\\artifacts\\models\\mobitive_gru_dynamic_range.tflite",
+      "size_bytes": 1179424,
+      "sha256": "07adc2f31a1f1fe52b10631eea5a2b37b12c5d97ee62163f9aaf45d9d7dadf2b",
+      "same_labels_as_keras_gru128": 112,
+      "max_malware_probability_delta_vs_keras_gru128": 0.002306520938873291
+    },
+    "gru64_fp32": {
+      "samples": 112,
+      "accuracy": 0.9642857142857143,
+      "precision_malware": 0.9166666666666666,
+      "recall_malware": 0.9166666666666666,
+      "f1_malware": 0.9166666666666666,
+      "false_negatives": 2,
+      "false_positives": 2,
+      "confusion_matrix": [
+        [
+          86,
+          2
+        ],
+        [
+          2,
+          22
+        ]
+      ],
+      "input_shape": [
+        1,
+        1,
+        2915
+      ],
+      "output_shape": [
+        1,
+        2
+      ],
+      "input_dtype": "float32",
+      "output_dtype": "float32",
+      "tensor_dtype_counts": {
+        "float32": 33,
+        "int32": 9
+      },
+      "desktop_tflite_median_ms": 0.0299,
+      "desktop_tflite_p95_ms": 0.040834999999999996,
+      "model_file": "D:\\toiuuphanmemdidong\\MobiTiveAI\\artifacts\\models\\mobitive_gru64_float32.tflite",
+      "size_bytes": 2296380,
+      "sha256": "be4284f79c3247fe30c7fe69c9a267ad0fe6d159246dc02c08628de2d4ba38f4",
+      "same_labels_as_keras_gru128": 110,
+      "max_malware_probability_delta_vs_keras_gru128": 0.44140374660491943
+    },
+    "mlp64_fp32": {
+      "samples": 112,
+      "accuracy": 0.9821428571428571,
+      "precision_malware": 1.0,
+      "recall_malware": 0.9166666666666666,
+      "f1_malware": 0.9565217391304348,
+      "false_negatives": 2,
+      "false_positives": 0,
+      "confusion_matrix": [
+        [
+          88,
+          0
+        ],
+        [
+          2,
+          22
+        ]
+      ],
+      "input_shape": [
+        1,
+        2915
+      ],
+      "output_shape": [
+        1,
+        2
+      ],
+      "input_dtype": "float32",
+      "output_dtype": "float32",
+      "tensor_dtype_counts": {
+        "float32": 8
+      },
+      "desktop_tflite_median_ms": 0.0124,
+      "desktop_tflite_p95_ms": 0.019989999999999997,
+      "model_file": "D:\\toiuuphanmemdidong\\MobiTiveAI\\artifacts\\models\\mobitive_mlp64_float32.tflite",
+      "size_bytes": 748712,
+      "sha256": "ce226aef0e3456ec516f2793b76f55c592c7752ba0feb06b68ae3521a41a2619",
+      "same_labels_as_keras_gru128": 112,
+      "max_malware_probability_delta_vs_keras_gru128": 0.36296212673187256
+    }
+  },
+  "errors": {}
+}

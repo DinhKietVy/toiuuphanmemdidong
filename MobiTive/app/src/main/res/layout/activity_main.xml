@@ -1,49 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp">
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="MobiTive"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="24dp" />
-
-    <Button
-        android:id="@+id/btnSelectApk"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Select APK" />
-
-    <TextView
-        android:id="@+id/tvFileName"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="No APK selected"
-        android:textSize="16sp"
-        android:layout_marginTop="16dp" />
-
-    <ProgressBar
-        android:id="@+id/progressBar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:layout_marginTop="16dp" />
-
-    <TextView
-        android:id="@+id/tvResult"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Scan result will appear here"
-        android:textSize="18sp"
-        android:gravity="center"
-        android:layout_marginTop="24dp" />
-
-</LinearLayout>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#F3F6FB" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:paddingStart="18dp" android:paddingEnd="18dp"
+        android:paddingTop="20dp" android:paddingBottom="36dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="21dp" android:background="@drawable/m4_hero_bg">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="ANDROID SECURITY · LOCAL INFERENCE" android:textSize="10sp"
+                android:letterSpacing="0.1" android:textStyle="bold" android:textColor="#90EBD7" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="MobiTive" android:textSize="32sp" android:textStyle="bold"
+                android:textColor="#FFFFFF" android:layout_marginTop="8dp" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="APK static analysis · GRU / MLP · Benchmark lab" android:textSize="12sp"
+                android:textColor="#C1D4E8" android:layout_marginTop="5dp" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="17dp" android:layout_marginTop="16dp"
+            android:background="@drawable/m4_card_bg">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="01  ·  PHÂN TÍCH ỨNG DỤNG" android:textStyle="bold"
+                android:textColor="#142746" android:textSize="13sp" />
+            <TextView android:id="@+id/tvFileName" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Chưa chọn APK" android:layout_marginTop="11dp"
+                android:maxLines="2" android:ellipsize="middle" android:textColor="#697A93" android:textSize="14sp" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="MÔ HÌNH PHÂN LOẠI" android:layout_marginTop="16dp"
+                android:textStyle="bold" android:textSize="11sp" android:textColor="#62758F" />
+            <Spinner android:id="@+id/m4ModelSpinner" android:layout_width="match_parent"
+                android:layout_height="48dp" android:layout_marginTop="5dp"
+                android:background="@drawable/m4_input_bg" android:paddingStart="8dp" android:paddingEnd="8dp" />
+            <CheckBox android:id="@+id/cbForceFullScan" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                android:text="Force full scan · Bỏ qua cache" android:buttonTint="#087E74"
+                android:textColor="#4E6380" android:checked="false" android:textSize="13sp" />
+            <Button android:id="@+id/btnSelectApk" android:layout_width="match_parent"
+                android:layout_height="50dp" android:layout_marginTop="6dp"
+                android:text="CHỌN APK VÀ QUÉT" android:textStyle="bold" android:textSize="13sp"
+                android:textColor="#FFFFFF" android:backgroundTint="#087E74" />
+            <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent" android:layout_height="4dp"
+                android:indeterminate="true" android:indeterminateTint="#087E74"
+                android:visibility="gone" android:layout_marginTop="11dp" />
+            <TextView android:id="@+id/m4Status" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                android:text="Sẵn sàng · Xử lý trên thiết bị"
+                android:textColor="#087E74" android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="17dp" android:layout_marginTop="14dp"
+            android:background="@drawable/m4_card_bg">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="02  ·  KẾT QUẢ PHÂN TÍCH" android:textStyle="bold"
+                android:textSize="13sp" android:textColor="#142746" />
+            <TextView android:id="@+id/tvResult" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                android:text="Chọn APK để bắt đầu. Kết quả và thời gian từng giai đoạn sẽ hiển thị ở đây."
+                android:textSize="13sp" android:lineSpacingExtra="4dp" android:textColor="#344D6A"
+                android:textIsSelectable="true" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="17dp" android:layout_marginTop="14dp"
+            android:background="@drawable/m4_card_bg">
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="03  ·  PHÒNG THỬ NGHIỆM" android:textStyle="bold"
+                android:textSize="13sp" android:textColor="#142746" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="So sánh tốc độ AI và lưu dữ liệu thực nghiệm." android:textSize="12sp"
+                android:layout_marginTop="5dp" android:textColor="#66788E" />
+            <Button android:id="@+id/btnAiBenchmark" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="10dp"
+                android:text="AI BENCHMARK · 5 MODEL × CPU" android:textColor="#FFFFFF"
+                android:backgroundTint="#243E67" android:enabled="false" />
+            <Button android:id="@+id/m4HistoryButton" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                android:text="LỊCH SỬ QUÉT" android:textColor="#142746" android:backgroundTint="#DBE7F2" />
+            <Button android:id="@+id/btnExportCsv" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                android:text="XUẤT SCAN BENCHMARK CSV" android:textColor="#142746" android:backgroundTint="#E6EDF6" />
+            <Button android:id="@+id/btnExportAiCsv" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                android:text="XUẤT AI BENCHMARK CSV" android:textColor="#142746" android:backgroundTint="#E6EDF6" />
+        </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="17dp" android:gravity="center"
+            android:text="MobiTive · Thử nghiệm học thuật, không thay thế đánh giá bảo mật chuyên nghiệp."
+            android:textColor="#8794A7" android:textSize="11sp" />
+    </LinearLayout>
+</ScrollView>
