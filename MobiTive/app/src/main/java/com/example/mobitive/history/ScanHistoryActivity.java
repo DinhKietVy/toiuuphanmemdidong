@@ -1,4 +1,4 @@
-package com.example.mobitive.m4;
+package com.example.mobitive.history;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Locale;
 
 /** Read-only on-device history; scan benchmark CSV remains separately exportable. */
-public final class M4HistoryActivity extends AppCompatActivity {
+public final class ScanHistoryActivity extends AppCompatActivity {
     private LinearLayout list;
     private TextView count;
 
@@ -29,10 +29,10 @@ public final class M4HistoryActivity extends AppCompatActivity {
         findViewById(com.example.mobitive.R.id.m4ClearHistory).setOnClickListener(v ->
                 new AlertDialog.Builder(this)
                         .setTitle("Xóa lịch sử quét?")
-                        .setMessage("Chỉ xóa lịch sử M4 trên máy; file benchmark CSV được giữ nguyên.")
+                        .setMessage("Chỉ xóa lịch sử quét trên máy; file benchmark CSV được giữ nguyên.")
                         .setNegativeButton("Hủy", null)
                         .setPositiveButton("Xóa", (d, which) -> {
-                            M4ScanHistory.clear(this);
+                            ScanHistory.clear(this);
                             render();
                         }).show());
         render();
@@ -49,7 +49,7 @@ public final class M4HistoryActivity extends AppCompatActivity {
 
     private void render() {
         list.removeAllViews();
-        List<M4ScanHistory.Record> records = M4ScanHistory.read(this);
+        List<ScanHistory.Record> records = ScanHistory.read(this);
         count.setText(records.size() + " lượt quét gần nhất · Lưu nội bộ, tối đa 60 lượt");
         if (records.isEmpty()) {
             TextView empty = line("Chưa có lịch sử. Quét một APK từ màn hình chính để bắt đầu.",
@@ -59,7 +59,7 @@ public final class M4HistoryActivity extends AppCompatActivity {
             return;
         }
         SimpleDateFormat fmt = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
-        for (M4ScanHistory.Record record : records) {
+        for (ScanHistory.Record record : records) {
             LinearLayout card = new LinearLayout(this);
             card.setOrientation(LinearLayout.VERTICAL);
             card.setPadding(dp(16), dp(14), dp(16), dp(14));

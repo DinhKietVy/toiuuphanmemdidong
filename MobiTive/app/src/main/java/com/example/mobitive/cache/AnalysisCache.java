@@ -43,7 +43,7 @@ public final class AnalysisCache {
     private static final int MAGIC = 0x4d334143; // M3AC
     // v2 (M5): API features come from DEX method_ids; v1 entries are ignored.
     private static final int VERSION = 2;
-    private static final int VECTOR_SIZE = 2915;
+    private static final int MAX_VECTOR_SIZE = 100_000;
     private static final int MAX_SET_ENTRIES = 200000;
     private static final long MAX_CACHE_BYTES = 32L * 1024L * 1024L;
     private static final int MAX_ENTRIES = 8;
@@ -53,13 +53,25 @@ public final class AnalysisCache {
     private final String dictionarySha256;
 
     public AnalysisCache(Context context) throws IOException {
-        Context app = context.getApplicationContext();
-        dir = new File(app.getCacheDir(), "m3-analysis-cache");
+        this(new File(context.getApplicationContext().getCacheDir(), "m3-analysis-cache"),
+                dictionaryDigest(context.getApplicationContext()));
+    }
+
+    /** @param dictionarySha256 SHA-256 of the feature dictionary the cached vectors were built with. */
+    public AnalysisCache(File dir, String dictionarySha256) throws IOException {
+        this.dir = dir;
         if (!dir.isDirectory() && !dir.mkdirs()) {
             throw new IOException("Unable to create analysis cache");
         }
+        if (dictionarySha256 == null || !dictionarySha256.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("Invalid dictionary SHA-256");
+        }
+        this.dictionarySha256 = dictionarySha256;
+    }
+
+    private static String dictionaryDigest(Context app) throws IOException {
         try (InputStream dictionary = app.getAssets().open("feature_dictionary.json")) {
-            dictionarySha256 = digestStream(dictionary);
+            return digestStream(dictionary);
         }
     }
 
@@ -122,8 +134,8 @@ public final class AnalysisCache {
                 throw new IOException("Cache key mismatch");
             }
             int size = input.readInt();
-            if (size != VECTOR_SIZE) throw new IOException("Invalid vector shape");
-            float[] vector = new float[VECTOR_SIZE];
+            if (size <= 0 || size > MAX_VECTOR_SIZE) throw new IOException("Invalid vector shape");
+            float[] vector = new float[size];
             int active = 0;
             for (int i = 0; i < size; i++) {
                 float value = input.readFloat();
@@ -181,8 +193,10 @@ public final class AnalysisCache {
                 out.writeUTF(apkSha);
                 out.writeUTF(dictionarySha256);
                 float[] vector = result.getFeatureVector();
-                if (vector.length != VECTOR_SIZE) throw new IOException("Invalid vector size");
-                out.writeInt(VECTOR_SIZE);
+                if (vector.length == 0 || vector.length > MAX_VECTOR_SIZE) {
+                    throw new IOException("Invalid vector size");
+                }
+                out.writeInt(vector.length);
                 for (float value : vector) {
                     if (value != 0f && value != 1f) throw new IOException("Non-binary vector");
                     out.writeFloat(value);

@@ -9,13 +9,14 @@ import android.util.Log;
 import com.example.mobitive.analyzer.ApkAnalyzer;
 import com.example.mobitive.benchmark.ScanBenchmark;
 import com.example.mobitive.cache.AnalysisCache;
-import com.example.mobitive.m4.M4ModelCatalog;
-import com.example.mobitive.m4.M4VariantClassifier;
+import com.example.mobitive.ml.ModelCatalog;
 import com.example.mobitive.ml.MalwareClassifier;
 import com.example.mobitive.utils.FileUtils;
 
 import java.io.File;
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The complete scan flow (copy+hash → cache → manifest/DEX → vector → TFLite),
@@ -51,13 +52,14 @@ public final class ScanPipeline implements AutoCloseable {
     private final Context context;
     private AnalysisCache analysisCache;
     private ApkAnalyzer apkAnalyzer;
-    private MalwareClassifier malwareClassifier;
+    /** One interpreter per model id, created on first use and reused across scans. */
+    private final Map<String, MalwareClassifier> classifiers = new HashMap<>();
 
     public ScanPipeline(Context context) {
         this.context = context.getApplicationContext();
     }
 
-    public Outcome scan(Uri apkUri, String fileName, M4ModelCatalog.Choice choice,
+    public Outcome scan(Uri apkUri, String fileName, ModelCatalog.Choice choice,
                         boolean forceFullScan) {
         ScanBenchmark benchmark = new ScanBenchmark(fileName);
         benchmark.setModelInfo(choice.id, choice.threads);
@@ -107,25 +109,16 @@ public final class ScanPipeline implements AutoCloseable {
             benchmark.samplePssAfterAnalysis();
             benchmark.setVectorHash(analysis.getFeatureVector());
 
-            if (choice.isBaseline()) {
-                if (malwareClassifier == null) {
-                    ScanBenchmark.Token initTiming = benchmark.startStage();
-                    malwareClassifier = new MalwareClassifier(context);
-                    benchmark.endStage("init_model", initTiming);
-                }
-                ScanBenchmark.Token inferenceTiming = benchmark.startStage();
-                prediction = malwareClassifier.predict(analysis.getFeatureVector());
-                benchmark.endStage("inference", inferenceTiming);
-            } else {
+            MalwareClassifier classifier = classifiers.get(choice.id);
+            if (classifier == null) {
                 ScanBenchmark.Token initTiming = benchmark.startStage();
-                try (M4VariantClassifier selectedClassifier =
-                             new M4VariantClassifier(context, choice)) {
-                    benchmark.endStage("init_model", initTiming);
-                    ScanBenchmark.Token inferenceTiming = benchmark.startStage();
-                    prediction = selectedClassifier.predict(analysis.getFeatureVector());
-                    benchmark.endStage("inference", inferenceTiming);
-                }
+                classifier = new MalwareClassifier(context, choice);
+                benchmark.endStage("init_model", initTiming);
+                classifiers.put(choice.id, classifier);
             }
+            ScanBenchmark.Token inferenceTiming = benchmark.startStage();
+            prediction = classifier.predict(analysis.getFeatureVector());
+            benchmark.endStage("inference", inferenceTiming);
 
             // Only cache successfully classified analyses; failures here
             // never invalidate an otherwise correct scan result.
@@ -168,9 +161,9 @@ public final class ScanPipeline implements AutoCloseable {
 
     @Override
     public void close() {
-        if (malwareClassifier != null) {
-            malwareClassifier.close();
-            malwareClassifier = null;
+        for (MalwareClassifier classifier : classifiers.values()) {
+            classifier.close();
         }
+        classifiers.clear();
     }
 }

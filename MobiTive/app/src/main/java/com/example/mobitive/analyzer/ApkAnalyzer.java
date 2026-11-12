@@ -35,11 +35,8 @@ public class ApkAnalyzer {
         // Khởi tạo bộ vector hóa.
         vectorizer = new FeatureVectorizer(dictionary);
 
-        if (dictionary.getFeatureCount() != 2915) {
-            throw new IllegalStateException(
-                    "Feature Dictionary phải có 2915 features, hiện tại: "
-                            + dictionary.getFeatureCount()
-            );
+        if (dictionary.getFeatureCount() <= 0) {
+            throw new IllegalStateException("Feature Dictionary rỗng.");
         }
     }
 
@@ -115,10 +112,10 @@ public class ApkAnalyzer {
         // 5. Kiểm tra kết quả
         // --------------------------------
 
-        if (vector.length != 2915) {
+        if (vector.length != dictionary.getFeatureCount()) {
             throw new IllegalStateException(
-                    "Vector phải có 2915 chiều, hiện tại: "
-                            + vector.length
+                    "Vector phải có " + dictionary.getFeatureCount()
+                            + " chiều, hiện tại: " + vector.length
             );
         }
 

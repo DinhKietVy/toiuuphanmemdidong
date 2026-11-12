@@ -1,4 +1,4 @@
-package com.example.mobitive.m4;
+package com.example.mobitive.ml;
 
 import android.content.Context;
 import java.io.IOException;
@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.List;
 
 /** Whitelisted local TFLite models; no remote loading or unverified model paths. */
-public final class M4ModelCatalog {
+public final class ModelCatalog {
     public static final class Choice {
         public final String id;
         public final String title;
@@ -32,7 +32,7 @@ public final class M4ModelCatalog {
             new Choice("mlp64_fp32", "MLP-64 FP32 · Lightweight", "mobitive_mlp64_float32.tflite", 1)
     };
 
-    private M4ModelCatalog() {}
+    private ModelCatalog() {}
 
     public static List<Choice> installed(Context context) throws IOException {
         String[] names = context.getAssets().list("models");

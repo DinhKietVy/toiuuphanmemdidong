@@ -14,7 +14,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.example.mobitive.benchmark.BenchmarkStore;
 import com.example.mobitive.benchmark.ModelBenchmark;
 import com.example.mobitive.benchmark.ScanBenchmark;
-import com.example.mobitive.m4.M4ModelCatalog;
+import com.example.mobitive.ml.ModelCatalog;
 import com.example.mobitive.scan.ScanPipeline;
 
 import org.junit.Test;
@@ -82,7 +82,7 @@ public class DeviceScanBenchmark {
         List<File> apks = new ArrayList<>(Arrays.asList(found));
         apks.sort(Comparator.comparingLong(File::length));
 
-        List<M4ModelCatalog.Choice> models = selectModels(context, args.getString("models", "gru128_fp32"));
+        List<ModelCatalog.Choice> models = selectModels(context, args.getString("models", "gru128_fp32"));
         String device = slug(Build.MANUFACTURER + "_" + Build.MODEL);
         File scanCsv = new File(resultsDir, "scan_" + device + "_" + runId + ".csv");
         writeDeviceInfo(context, new File(resultsDir, "device_" + device + "_" + runId + ".json"));
@@ -94,7 +94,7 @@ public class DeviceScanBenchmark {
         int failures = 0;
 
         try (ScanPipeline pipeline = new ScanPipeline(context)) {
-            for (M4ModelCatalog.Choice model : models) {
+            for (ModelCatalog.Choice model : models) {
                 // 1) Warm-up (cold start of class loading, JIT, model init). Kept, iteration < 0.
                 for (int w = 0; w < warmup; w++) {
                     failures += run(pipeline, apks.get(0), model, true, -1 - w, scanCsv, cooldownMs);
@@ -132,19 +132,19 @@ public class DeviceScanBenchmark {
                 failures == 0);
     }
 
-    private static int run(ScanPipeline pipeline, File apk, M4ModelCatalog.Choice model,
+    private static int run(ScanPipeline pipeline, File apk, ModelCatalog.Choice model,
                            boolean forced, int iteration, File csv, long cooldownMs) throws IOException {
         return record(scan(pipeline, apk, model, forced, iteration), csv, apk, model, iteration, cooldownMs);
     }
 
     private static ScanPipeline.Outcome scan(ScanPipeline pipeline, File apk,
-                                             M4ModelCatalog.Choice model, boolean forced, int iteration) {
+                                             ModelCatalog.Choice model, boolean forced, int iteration) {
         ScanPipeline.Outcome o = pipeline.scan(Uri.fromFile(apk), apk.getName(), model, forced);
         o.benchmark.setRunInfo("harness", iteration);
         return o;
     }
 
-    private static int record(ScanPipeline.Outcome o, File csv, File apk, M4ModelCatalog.Choice model,
+    private static int record(ScanPipeline.Outcome o, File csv, File apk, ModelCatalog.Choice model,
                               int iteration, long cooldownMs) throws IOException {
         BenchmarkStore.appendTo(csv, o.benchmark);
         log(String.format(Locale.US, "%s it=%d model=%s mode=%s total=%.1fms %s",
@@ -154,13 +154,13 @@ public class DeviceScanBenchmark {
         return o.ok() ? 0 : 1;
     }
 
-    private static List<M4ModelCatalog.Choice> selectModels(Context context, String spec) throws IOException {
-        List<M4ModelCatalog.Choice> installed = M4ModelCatalog.installed(context);
+    private static List<ModelCatalog.Choice> selectModels(Context context, String spec) throws IOException {
+        List<ModelCatalog.Choice> installed = ModelCatalog.installed(context);
         if ("all".equalsIgnoreCase(spec)) return installed;
-        List<M4ModelCatalog.Choice> out = new ArrayList<>();
+        List<ModelCatalog.Choice> out = new ArrayList<>();
         for (String id : spec.split(",")) {
             boolean matched = false;
-            for (M4ModelCatalog.Choice c : installed) {
+            for (ModelCatalog.Choice c : installed) {
                 if (c.id.equals(id.trim())) {
                     out.add(c);
                     matched = true;
@@ -171,9 +171,9 @@ public class DeviceScanBenchmark {
         return out;
     }
 
-    private static String idsOf(List<M4ModelCatalog.Choice> choices) {
+    private static String idsOf(List<ModelCatalog.Choice> choices) {
         StringBuilder sb = new StringBuilder();
-        for (M4ModelCatalog.Choice c : choices) sb.append(sb.length() == 0 ? "" : ",").append(c.id);
+        for (ModelCatalog.Choice c : choices) sb.append(sb.length() == 0 ? "" : ",").append(c.id);
         return sb.toString();
     }
 

@@ -24,7 +24,7 @@ public class FeatureDictionary {
     private final List<String> apiFeatures;
     private final List<String> manifestFeatures;
 
-    // Feature -> vị trí trong vector 2915 chiều
+    // Feature -> vị trí trong vector đặc trưng (API trước, Manifest sau)
     private final Map<String, Integer> apiIndexMap;
     private final Map<String, Integer> manifestIndexMap;
 
@@ -74,6 +74,11 @@ public class FeatureDictionary {
 
         totalFeatureCount =
                 this.apiFeatures.size() + this.manifestFeatures.size();
+    }
+
+    /** Builds a dictionary directly (unit tests, tools). Index order = list order. */
+    public static FeatureDictionary fromLists(List<String> apiFeatures, List<String> manifestFeatures) {
+        return new FeatureDictionary(apiFeatures, manifestFeatures);
     }
 
     public static FeatureDictionary load(Context context)

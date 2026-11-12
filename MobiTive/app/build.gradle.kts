@@ -22,12 +22,20 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // M9: R8 code + resource shrinking (keep rules in proguard-rules.pro).
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // Real phones are ARM; x86/x86_64 TFLite libs (~9 MB) only serve emulators.
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
+    }
+    testOptions {
+        // JVM unit tests touch android.util.Log (AnalysisCache); return defaults instead of throwing.
+        unitTests.isReturnDefaultValues = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -47,6 +55,8 @@ dependencies {
     implementation("com.google.code.gson:gson:2.11.0")
 
     // AndroidX
+    implementation("androidx.lifecycle:lifecycle-viewmodel:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-livedata:2.8.7")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation(libs.appcompat)

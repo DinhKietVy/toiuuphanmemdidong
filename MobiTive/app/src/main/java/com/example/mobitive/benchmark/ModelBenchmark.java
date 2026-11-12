@@ -1,18 +1,16 @@
 package com.example.mobitive.benchmark;
 
 import android.content.Context;
-import android.content.res.AssetFileDescriptor;
 import android.os.Build;
 import android.os.Debug;
 import android.os.SystemClock;
 
+import com.example.mobitive.ml.ModelAssets;
+
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.Interpreter;
 
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -67,8 +65,8 @@ public final class ModelBenchmark {
 
     /** Run synchronously on the dedicated background executor, never UI thread. */
     public static Result run(Context context, float[] vector) {
-        if (vector == null || vector.length != 2915) {
-            throw new IllegalArgumentException("Cần quét APK thành công trước (2915 features).");
+        if (vector == null || vector.length == 0) {
+            throw new IllegalArgumentException("Cần quét APK thành công trước.");
         }
         for (float x : vector) {
             if (!Float.isFinite(x)) {
@@ -104,7 +102,7 @@ public final class ModelBenchmark {
                 Interpreter interpreter = null;
                 try {
                     long startInit = SystemClock.elapsedRealtimeNanos();
-                    ModelBuffer model = loadModel(app, file);
+                    ModelAssets.Model model = ModelAssets.map(app, "models/" + file);
                     Interpreter.Options options = new Interpreter.Options();
                     options.setNumThreads(threads);
                     try {
@@ -118,22 +116,20 @@ public final class ModelBenchmark {
                         throw new IllegalArgumentException("Only float32 input/output supported");
                     }
                     int[] inShape = interpreter.getInputTensor(0).shape();
-                    if (!Arrays.equals(inShape, new int[]{1,1,2915}) &&
-                            !Arrays.equals(inShape, new int[]{1,2915})) {
-                        throw new IllegalArgumentException("Unsupported input shape: " + Arrays.toString(inShape));
+                    int n = vector.length;
+                    if (!Arrays.equals(inShape, new int[]{1, 1, n}) &&
+                            !Arrays.equals(inShape, new int[]{1, n})) {
+                        throw new IllegalArgumentException("Model input " + Arrays.toString(inShape)
+                                + " does not match " + n + " features");
                     }
                     if (!Arrays.equals(interpreter.getOutputTensor(0).shape(), new int[]{1,2})) {
                         throw new IllegalArgumentException("Unsupported output shape");
                     }
                     Object input;
                     if (inShape.length == 3) {
-                        float[][][] arr = new float[1][1][2915];
-                        System.arraycopy(vector, 0, arr[0][0], 0, 2915);
-                        input = arr;
+                        input = new float[][][]{{vector.clone()}};
                     } else {
-                        float[][] arr = new float[1][2915];
-                        System.arraycopy(vector, 0, arr[0], 0, 2915);
-                        input = arr;
+                        input = new float[][]{vector.clone()};
                     }
                     float[][] output = new float[1][2];
                     for (int i = 0; i < WARMUP; i++) interpreter.run(input, output);
@@ -160,7 +156,7 @@ public final class ModelBenchmark {
                     double sum = 0;
                     for (double sample : samples) sum += sample;
                     double mean = sum / samples.size();
-                    String row = prefix(epochMs, modelId, threads, model.length) +
+                    String row = prefix(epochMs, modelId, threads, model.bytes) +
                             WARMUP + "," + ITERATIONS + "," + fmt(initMs) + "," +
                             fmt(p50) + "," + fmt(p95) + "," + fmt(mean) + "," +
                             fmt(cpuTotalMs / ITERATIONS) + "," + fmt(prediction.benign) + "," +
@@ -207,23 +203,5 @@ public final class ModelBenchmark {
 
     private static double elapsedMs(long startNs) {
         return (SystemClock.elapsedRealtimeNanos() - startNs) / 1_000_000.0;
-    }
-
-    private static final class ModelBuffer {
-        final MappedByteBuffer buffer;
-        final long length;
-        ModelBuffer(MappedByteBuffer buffer, long length) {
-            this.buffer = buffer;
-            this.length = length;
-        }
-    }
-
-    private static ModelBuffer loadModel(Context context, String name) throws IOException {
-        try (AssetFileDescriptor fd = context.getAssets().openFd("models/" + name);
-             FileInputStream stream = new FileInputStream(fd.getFileDescriptor())) {
-            MappedByteBuffer mapped = stream.getChannel().map(FileChannel.MapMode.READ_ONLY,
-                    fd.getStartOffset(), fd.getDeclaredLength());
-            return new ModelBuffer(mapped, fd.getDeclaredLength());
-        }
     }
 }

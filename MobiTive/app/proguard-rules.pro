@@ -19,3 +19,15 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# ---------------------------------------------------------------- MobiTive (M9)
+# TensorFlow Lite: Java classes are called from native code (JNI).
+-keep class org.tensorflow.lite.** { *; }
+-dontwarn org.tensorflow.lite.**
+
+# apk-parser: binary-XML/resource parsing uses reflection on its own classes.
+-keep class net.dongliu.apk.parser.** { *; }
+-dontwarn net.dongliu.apk.parser.**
+-dontwarn javax.annotation.**
+
+# Readable crash stack traces for bug reports.
+-keepattributes SourceFile,LineNumberTable

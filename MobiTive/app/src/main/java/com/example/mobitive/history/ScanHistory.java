@@ -1,4 +1,4 @@
-package com.example.mobitive.m4;
+package com.example.mobitive.history;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -10,11 +10,11 @@ import java.util.Collections;
 import java.util.List;
 
 /** Local, app-private history. No raw APK, vector, or credentials stored here. */
-public final class M4ScanHistory {
-    private static final String PREFS = "m4_scan_history_v1";
+public final class ScanHistory {
+    private static final String PREFS = "m4_scan_history_v1"; // name kept: existing installs keep their history
     private static final String KEY = "records";
     private static final int MAX_RECORDS = 60;
-    private M4ScanHistory() {}
+    private ScanHistory() {}
 
     public static final class Record {
         public final long epochMs;
