@@ -1,0 +1,363 @@
+diff --git a/libbpfgo/libbpf_cb.go b/libbpfgo/libbpf_cb.go
+index a1777d5..071bb11 100644
+--- a/libbpfgo/libbpf_cb.go
++++ b/libbpfgo/libbpf_cb.go
+@@ -1,22 +1,22 @@
++
+ package libbpfgo
+ 
+-import (
+-	"C"
+-	"unsafe"
+-)
++/*
++#include <stdint.h>
++*/
++import "C"
+ 
+-// This callback definition needs to be in a different file from where it is declared in C
+-// Otherwise, multiple definition compilation error will occur
++import "unsafe"
+ 
+ //export perfCallback
+-func perfCallback(ctx unsafe.Pointer, cpu C.int, data unsafe.Pointer, size C.int) {
+-	eventChannels[uintptr(ctx)] <- C.GoBytes(data, size)
++func perfCallback(ctx C.uintptr_t, cpu C.int, data unsafe.Pointer, size C.uint32_t) {
++    eventChannels[uintptr(ctx)] <- C.GoBytes(data, C.int(size))
+ }
+ 
+ //export perfLostCallback
+-func perfLostCallback(ctx unsafe.Pointer, cpu C.int, cnt C.ulonglong) {
+-	lostChan := lostChannels[uintptr(ctx)]
+-	if lostChan != nil {
+-		lostChan <- uint64(cnt)
+-	}
++func perfLostCallback(ctx C.uintptr_t, cpu C.int, cnt C.uint64_t) {
++    lostChan := lostChannels[uintptr(ctx)]
++    if lostChan != nil {
++        lostChan <- uint64(cnt)
++    }
+ }
+diff --git a/libbpfgo/libbpfgo.go b/libbpfgo/libbpfgo.go
+index e511c1d..a36f9ad 100644
+--- a/libbpfgo/libbpfgo.go
++++ b/libbpfgo/libbpfgo.go
+@@ -17,8 +17,20 @@ package libbpfgo
+ #include <string.h>
+ #include <unistd.h>
+ 
+-extern void perfCallback(void *ctx, int cpu, void *data, __u32 size);
+-extern void perfLostCallback(void *ctx, int cpu, __u64 cnt);
++#include <stdint.h>
++
++extern void perfCallback(uintptr_t ctx, int cpu, void *data, __u32 size);
++extern void perfLostCallback(uintptr_t ctx, int cpu, __u64 cnt);
++
++static void perfCallbackWrapper(void *ctx, int cpu, void *data, __u32 size)
++{
++    perfCallback((uintptr_t)ctx, cpu, data, size);
++}
++
++static void perfLostCallbackWrapper(void *ctx, int cpu, __u64 cnt)
++{
++    perfLostCallback((uintptr_t)ctx, cpu, cnt);
++}
+ 
+ int libbpf_print_fn(enum libbpf_print_level level,
+ 			   const char *format, va_list args)
+@@ -35,10 +47,9 @@ void set_print_fn() {
+ struct perf_buffer * init_perf_buf(int map_fd, int page_cnt) {
+     struct perf_buffer_opts pb_opts = {};
+     struct perf_buffer *pb = NULL;
+-    pb_opts.sample_cb = perfCallback;
+-    pb_opts.lost_cb = perfLostCallback;
+-    __u64 ctx = map_fd;
+-    pb_opts.ctx = (void*)ctx;
++    pb_opts.sample_cb = perfCallbackWrapper;
++	pb_opts.lost_cb = perfLostCallbackWrapper;
++	pb_opts.ctx = (void *)(uintptr_t)map_fd;
+     pb = perf_buffer__new(map_fd, page_cnt, &pb_opts);
+     if (pb < 0) {
+         fprintf(stderr, "Failed to initialize perf buffer!\n");
+diff --git a/tracee/tracee.bpf.c b/tracee/tracee.bpf.c
+index 3e7fe98..04ce6bf 100644
+--- a/tracee/tracee.bpf.c
++++ b/tracee/tracee.bpf.c
+@@ -847,55 +847,67 @@ static __always_inline int save_to_submit_buf(buf_t *submit_p, void *ptr, u32 si
+     return 0;
+ }
+ 
++
+ static __always_inline int save_str_to_buf(buf_t *submit_p, void *ptr, u8 tag)
+ {
+-    u32* off = get_buf_off(SUBMIT_BUF_IDX);
++    u32 *off = get_buf_off(SUBMIT_BUF_IDX);
+     if (off == NULL)
+         return 0;
+-    if (*off > MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE - sizeof(int))
+-        // not enough space - return
++
++    u32 pos = *off;
++
++    if (pos > MAX_PERCPU_BUFSIZE - sizeof(int))
+         return 0;
+ 
+-    // Save argument type
+     u8 type = STR_T;
+-    bpf_probe_read(&(submit_p->buf[*off & (MAX_PERCPU_BUFSIZE-1)]), 1, &type);
++    if (bpf_probe_read(&submit_p->buf[pos], 1, &type) != 0)
++        return 0;
+ 
+-    *off += 1;
++    pos++;
+ 
+-    // Save argument tag
+     if (tag != TAG_NONE) {
+-        int rc = bpf_probe_read(&(submit_p->buf[*off & (MAX_PERCPU_BUFSIZE-1)]), 1, &tag);
+-        if (rc != 0) {
+-            *off -= 1;
++        if (pos >= MAX_PERCPU_BUFSIZE)
+             return 0;
+-        }
+ 
+-        *off += 1;
++        if (bpf_probe_read(&submit_p->buf[pos], 1, &tag) != 0)
++            return 0;
++
++        pos++;
+     }
+ 
+-    if (*off > MAX_PERCPU_BUFSIZE - MAX_STRING_SIZE - sizeof(int)) {
+-        // Satisfy validator for probe read
+-        *off -= 2;
++    if (pos > MAX_PERCPU_BUFSIZE - sizeof(int))
+         return 0;
+-    }
+ 
+-    // Read into buffer
+-    int sz = bpf_probe_read_str(&(submit_p->buf[*off + sizeof(int)]), MAX_STRING_SIZE, ptr);
+-    if (sz > 0) {
+-        if (*off > MAX_PERCPU_BUFSIZE - sizeof(int)) {
+-            // Satisfy validator for probe read
+-            *off -= 2;
+-            return 0;
+-        }
+-        bpf_probe_read(&(submit_p->buf[*off]), sizeof(int), &sz);
+-        *off += sz + sizeof(int);
+-        return 1;
+-    }
++    u32 remaining = MAX_PERCPU_BUFSIZE - pos - sizeof(int);
+ 
+-    *off -= 2;
+-    return 0;
++    if (remaining > MAX_STRING_SIZE)
++        remaining = MAX_STRING_SIZE;
++
++    if (remaining == 0)
++        return 0;
++
++    if (pos > MAX_PERCPU_BUFSIZE - sizeof(int) - 256)
++        return 0;
++
++    int sz = bpf_probe_read_str(
++        &submit_p->buf[pos + sizeof(int)],
++        256,
++        ptr
++    );
++
++    if (sz <= 0)
++        return 0;
++
++    if (sz > remaining)
++        return 0;
++
++    bpf_probe_read(&submit_p->buf[pos], sizeof(int), &sz);
++
++    *off = pos + sz + sizeof(int);
++    return 1;
+ }
+ 
++
+ static __always_inline int save_str_arr_to_buf(buf_t *submit_p, const char __user *const __user *ptr, u8 tag)
+ {
+     u8 elem_num = 0;
+@@ -1812,6 +1824,10 @@ struct bpf_raw_tracepoint_args *ctx
+ #endif
+ )
+ {
++    // BPFroid: forget the exiting thread's uid, otherwise a reused tid looks like a uid change
++    u32 exiting_tid = bpf_get_current_pid_tgid();
++    bpf_map_delete_elem(&pid_to_uid, &exiting_tid);
++
+     if (!should_trace())
+         return 0;
+ 
+diff --git a/tracee/tracee.go b/tracee/tracee.go
+index 3a4ed70..49037b7 100644
+--- a/tracee/tracee.go
++++ b/tracee/tracee.go
+@@ -31,8 +31,8 @@ type TraceeConfig struct {
+ 	PerfBufferSize     int
+ 	BlobPerfBufferSize int
+ 	SecurityAlerts     bool
+-	ApiHookConfigs        []apiHookConfig
+-	LibHookConfigs        []libHookConfig
++	ApiHookConfigs     []apiHookConfig
++	LibHookConfigs     []libHookConfig
+ 	maxPidsCache       int // maximum number of pids to cache per mnt ns (in Tracee.pidsInMntns)
+ 	BPFObjPath         string
+ }
+@@ -207,11 +207,11 @@ type libHookConfig struct {
+ }
+ 
+ type syscallHookConfig struct {
+-	Name  string   `json:"name"`
++	Name string `json:"name"`
+ }
+ 
+ type kprobeHookConfig struct {
+-	Name  string   `json:"name"`
++	Name string `json:"name"`
+ }
+ 
+ type hooksConfigs struct {
+@@ -340,6 +340,14 @@ func New(cfg TraceeConfig) (*Tracee, error) {
+ 		t.eventsToTrace[e] = true
+ 	}
+ 
++	// BPFroid: write_alert has no probes of its own - it is emitted from the vfs_write kretprobe
++	// (magic bytes are checked in-kernel). Attach vfs_write without submitting/printing every write.
++	if t.eventsToTrace[WriteAlertEventID] {
++		if _, ok := t.eventsToTrace[VfsWriteEventID]; !ok {
++			t.eventsToTrace[VfsWriteEventID] = false
++		}
++	}
++
+ 	// Compile final list of events to trace including essential events
+ 	for id, event := range EventsIDToEvent {
+ 		// If an essential event was not requested by the user, set its map value to false
+@@ -1056,7 +1064,7 @@ func (t *Tracee) initHooks() error {
+ 
+ 	// save parsed hook for next execution - save in chrooted env.
+ 	_, err = os.Stat(cachedAPIHooksPath)
+-	if len(t.apiHooks) > 0 && ((len(cachedApiHooks) < len(t.apiHooks)) || os.IsNotExist(err))  {
++	if len(t.apiHooks) > 0 && ((len(cachedApiHooks) < len(t.apiHooks)) || os.IsNotExist(err)) {
+ 		fileData, _ := json.MarshalIndent(cachedApiHooks, "", " ")
+ 		_ = ioutil.WriteFile(cachedAPIHooksPath, fileData, 0644)
+ 	}
+@@ -1603,6 +1611,7 @@ func (t *Tracee) processEvent(ctx *context, args map[argTag]interface{}) error {
+ 			if filePath == "" || filePath[0] != '/' {
+ 				return nil
+ 			}
++
+ 			dev, ok := args[t.EncParamName[ctx.EventID%2]["dev"]].(uint32)
+ 			if !ok {
+ 				return fmt.Errorf("error parsing vfs_write args")
+@@ -1623,6 +1632,15 @@ func (t *Tracee) processEvent(ctx *context, args map[argTag]interface{}) error {
+ 			t.writtenFiles[fileName] = filePath
+ 		}
+ 
++	// BPFroid dropper detection, system-wide: the kernel already matched the
++	// ELF / DEX / archive magic of a write at file offset 0.
++	case WriteAlertEventID:
++		t.reportDropperAlert(ctx, args)
++
++	// BPFroid privilege escalation: the kernel saw a thread's uid differ between two syscalls.
++	case UidChangedAlertEventID:
++		t.reportPrivEscAlert(ctx, args)
++
+ 	case SecurityBprmCheckEventID:
+ 
+ 		//cache this pid by it's mnt ns
+@@ -1684,6 +1702,82 @@ func (t *Tracee) processEvent(ctx *context, args map[argTag]interface{}) error {
+ 	return nil
+ }
+ 
++// BPFroid: alerts also go to the file named by BPFROID_ALERT_FILE (if set), so consumers
++// don't have to scan tracee's full output. processEvent runs on a single goroutine.
++var dropperAlertFile *os.File
++var dropperAlertFileOpened bool
++
++func dropperPayloadType(magic uint32) string {
++	switch magic {
++	case 0x464c457f:
++		return "ELF"
++	case 0x04034b50:
++		return "ZIP/APK"
++	case 0x0a786564:
++		return "DEX"
++	}
++	return ""
++}
++
++func (t *Tracee) reportDropperAlert(ctx *context, args map[argTag]interface{}) {
++	tags := t.EncParamName[ctx.EventID%2]
++	magic, _ := args[tags["magic"]].(uint32)
++	payloadType := dropperPayloadType(magic)
++	if payloadType == "" {
++		return
++	}
++	path, _ := args[tags["pathname"]].(string)
++	dev, _ := args[tags["dev"]].(uint32)
++	inode, _ := args[tags["inode"]].(uint64)
++	comm := strings.ReplaceAll(string(bytes.TrimRight(ctx.Comm[:], "\x00")), " ", "_")
++
++	// path last: it is the only field that may contain spaces.
++	emitBPFroidAlert(fmt.Sprintf("BPFROID_DROPPER_ALERT type=%s uid=%d pid=%d comm=%s dev=%d inode=%d path=%s\n",
++		payloadType, ctx.Uid, ctx.HostPid, comm, dev, inode, path))
++}
++
++const firstAppUID = 10000
++
++// Only privilege *gains* are reported: becoming root, or an app uid turning into a system uid.
++// Dropping privileges (zygote 0 -> app uid, daemons switching to their service uid) is normal.
++func isPrivilegeEscalation(prevUID, curUID uint32) bool {
++	if curUID == 0 && prevUID != 0 {
++		return true
++	}
++	return prevUID >= firstAppUID && curUID < firstAppUID
++}
++
++func (t *Tracee) reportPrivEscAlert(ctx *context, args map[argTag]interface{}) {
++	tags := t.EncParamName[ctx.EventID%2]
++	prevUID, ok1 := args[tags["prev_uid"]].(uint32)
++	curUID, ok2 := args[tags["cur_uid"]].(uint32)
++	if !ok1 || !ok2 || !isPrivilegeEscalation(prevUID, curUID) {
++		return
++	}
++	comm := strings.ReplaceAll(string(bytes.TrimRight(ctx.Comm[:], "\x00")), " ", "_")
++	emitBPFroidAlert(fmt.Sprintf("BPFROID_PRIVESC_ALERT prev_uid=%d uid=%d pid=%d tid=%d comm=%s\n",
++		prevUID, curUID, ctx.HostPid, ctx.HostTid, comm))
++}
++
++func emitBPFroidAlert(line string) {
++	fmt.Print(line)
++
++	if !dropperAlertFileOpened {
++		dropperAlertFileOpened = true
++		if p := os.Getenv("BPFROID_ALERT_FILE"); p != "" {
++			f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
++			if err != nil {
++				fmt.Fprintf(os.Stderr, "BPFroid: cannot open alert file %s: %v\n", p, err)
++			} else {
++				dropperAlertFile = f
++			}
++		}
++	}
++	if dropperAlertFile != nil {
++		dropperAlertFile.WriteString(line)
++	}
++}
++
+ // shouldPrintEvent decides whether or not the given event id should be printed to the output
+ func (t *Tracee) shouldPrintEvent(e RawEvent) bool {
+ 	// Only print events requested by the user
+@@ -1813,7 +1907,7 @@ func (t *Tracee) prepareArgsForPrint(ctx *context, args map[argTag]interface{})
+ 		uprobeOffTag := argTag(0)
+ 		if addr, isUint64 := args[uprobeOffTag].(uint64); isUint64 {
+ 			if _, ok := t.uprobesDesc[addr]; ok {
+-				args[uprobeOffTag] = t.uprobesDesc[addr].ClassName + "." + t.uprobesDesc[addr].Method +  "(" + strings.Join(t.uprobesDesc[addr].ArgsTypes, ", ") + ")"
++				args[uprobeOffTag] = t.uprobesDesc[addr].ClassName + "." + t.uprobesDesc[addr].Method + "(" + strings.Join(t.uprobesDesc[addr].ArgsTypes, ", ") + ")"
+ 			} else {
+ 				val := args[uprobeOffTag]
+ 				args[uprobeOffTag] = fmt.Sprintf("0x%X", val)
