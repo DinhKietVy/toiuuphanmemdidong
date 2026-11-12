@@ -29,6 +29,8 @@ METRICS = [
     ("total_wall_ms", "Tổng (wall)"),
     ("copy_apk_wall_ms", "Copy APK"),
     ("hash_apk_wall_ms", "SHA-256"),
+    # M6 gộp hash vào copy: so sánh công bằng bằng tổng 2 giai đoạn.
+    ("copy_plus_hash_ms", "Copy + SHA-256"),
     ("manifest_wall_ms", "Manifest"),
     ("dex_wall_ms", "DEX (wall)"),
     ("dex_thread_cpu_ms", "DEX (CPU)"),
@@ -61,6 +63,12 @@ def load(path, args):
 
 
 def values(rows, key):
+    if key == "copy_plus_hash_ms":
+        out = []
+        for r in rows:
+            if r.get("copy_apk_wall_ms"):
+                out.append(float(r["copy_apk_wall_ms"]) + float(r.get("hash_apk_wall_ms") or 0))
+        return out
     result = []
     for r in rows:
         v = r.get(key, "")

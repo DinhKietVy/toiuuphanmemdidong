@@ -32,9 +32,9 @@ import com.example.mobitive.m4.M4ModelCatalog;
 import com.example.mobitive.m4.M4VariantClassifier;
 import com.example.mobitive.m4.M4ScanHistory;
 import com.example.mobitive.m4.M4HistoryActivity;
+import com.example.mobitive.utils.FileUtils;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.Locale;
 import java.util.List;
@@ -319,17 +319,18 @@ public class MainActivity extends AppCompatActivity {
             benchmark.samplePssBefore();
 
             try {
+                // M6: copy and SHA-256 in a single pass. "copy_apk" now includes
+                // hashing; "hash_apk" is intentionally left empty in the CSV.
                 ScanBenchmark.Token copyTiming = benchmark.startStage();
-                temporaryApk = copyApkToCache(apkUri);
+                temporaryApk = File.createTempFile("mobitive_scan_", ".apk", getCacheDir());
+                FileUtils.CopyResult copied = copyApkToCache(apkUri, temporaryApk);
                 benchmark.endStage("copy_apk", copyTiming);
-                benchmark.setApkBytes(temporaryApk.length());
+                benchmark.setApkBytes(copied.bytes);
+                apkSha = copied.sha256;
 
                 if (analysisCache == null) {
                     analysisCache = new AnalysisCache(getApplicationContext());
                 }
-                ScanBenchmark.Token hashTiming = benchmark.startStage();
-                apkSha = AnalysisCache.sha256(temporaryApk);
-                benchmark.endStage("hash_apk", hashTiming);
 
                 if (!forceFullScan) {
                     ScanBenchmark.Token readTiming = benchmark.startStage();
@@ -442,40 +443,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Sao chép APK từ Uri vào cache.
+     * Sao chép APK từ Uri vào {@code outputFile} và tính SHA-256 trong cùng một lượt đọc.
+     * outputFile do caller tạo để khối finally luôn xoá được file tạm, kể cả khi copy lỗi.
      */
-    private File copyApkToCache(Uri uri) throws Exception {
-
-        File outputFile = File.createTempFile(
-                "mobitive_scan_",
-                ".apk",
-                getCacheDir()
-        );
-
-        try (
-                InputStream inputStream =
-                        getContentResolver().openInputStream(uri);
-
-                FileOutputStream outputStream =
-                        new FileOutputStream(outputFile)
-        ) {
-
-            if (inputStream == null) {
-                throw new Exception("Không thể mở APK.");
-            }
-
-            byte[] buffer = new byte[8192];
-
-            int length;
-
-            while ((length = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, length);
-            }
-
-            outputStream.flush();
+    private FileUtils.CopyResult copyApkToCache(Uri uri, File outputFile) throws Exception {
+        try (InputStream inputStream = getContentResolver().openInputStream(uri)) {
+            return FileUtils.copyWithSha256(inputStream, outputFile);
         }
-
-        return outputFile;
     }
 
     /**

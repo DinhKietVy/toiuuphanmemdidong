@@ -129,13 +129,13 @@ public final class ScanBenchmark {
         return String.format(Locale.US,
                 "\n\nM3 SCAN BENCHMARK (wall-clock)\n" +
                 "Cache mode: %s (HIT = same APK+dictionary; FORCED = full scan)\n" +
-                "Total: %.1f ms; Copy: %.1f ms; SHA-256: %.1f ms\n" +
+                "Total: %.1f ms; Copy+SHA-256 (1 pass): %.1f ms\n" +
                 "Cache read: %.1f ms; Cache write: %.1f ms\n" +
                 "Manifest: %.1f ms; DEX: %.1f ms; Inference: %.3f ms\n" +
                 "PSS start/after analysis/end: %d / %d / %d KB\n" +
                 "(PSS snapshots are NOT peak RAM)",
                 cacheMode, getWallMs("total"), getWallMs("copy_apk"),
-                getWallMs("hash_apk"), getWallMs("cache_read"),
+                getWallMs("cache_read"),
                 getWallMs("cache_write"), getWallMs("manifest"),
                 getWallMs("dex"), getWallMs("inference"),
                 pssStartKb, pssAfterAnalysisKb, pssEndKb);
