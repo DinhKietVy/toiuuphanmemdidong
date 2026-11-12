@@ -23,7 +23,7 @@ public class FeatureVectorizer {
      *
      * @param apiCalls Các API descriptor trích xuất từ DEX.
      * @param manifestFeatures Các feature trích xuất từ Manifest.
-     * @return Vector float có 2915 phần tử.
+     * @return Vector float có {@code dictionary.getFeatureCount()} phần tử.
      */
     public float[] vectorize(
             Set<String> apiCalls,

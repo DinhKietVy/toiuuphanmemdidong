@@ -1,4 +1,3 @@
-
 package com.example.mobitive;
 
 import android.content.Intent;
@@ -7,345 +6,190 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 
-import com.example.mobitive.analyzer.ApkAnalyzer;
-import com.example.mobitive.ml.MalwareClassifier;
+import com.example.mobitive.benchmark.BenchmarkStore;
+import com.example.mobitive.benchmark.ModelBenchmarkStore;
+import com.example.mobitive.history.ScanHistoryActivity;
+import com.example.mobitive.ml.ModelCatalog;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * UI only: renders {@link MainViewModel.UiState} and forwards user actions.
+ * All scanning, benchmarking and CSV export run in the ViewModel, so they
+ * survive configuration changes.
+ */
 public class MainActivity extends AppCompatActivity {
 
+    private static final String PREF_MODEL_ID = "m4_model_id"; // key kept for existing installs
+
+    private MainViewModel viewModel;
+    private List<ModelCatalog.Choice> models = new ArrayList<>();
+
     private Button btnSelectApk;
+    private Button btnExportCsv;
+    private Button btnAiBenchmark;
+    private Button btnExportAiCsv;
+    private CheckBox cbForceFullScan;
+    private Spinner modelSpinner;
+    private TextView tvStatus;
     private TextView tvFileName;
     private TextView tvResult;
     private ProgressBar progressBar;
 
-    private ExecutorService executorService;
-
-    private ApkAnalyzer apkAnalyzer;
-    private MalwareClassifier malwareClassifier;
-
-    private ActivityResultLauncher<Intent> apkPickerLauncher;
+    private ActivityResultLauncher<String[]> apkPicker;
+    private ActivityResultLauncher<String> scanCsvExporter;
+    private ActivityResultLauncher<String> aiCsvExporter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        initializeViews();
-
-        executorService = Executors.newSingleThreadExecutor();
-
-        registerApkPicker();
-
-        btnSelectApk.setOnClickListener(v -> openApkPicker());
-    }
-
-    private void initializeViews() {
+        viewModel = new ViewModelProvider(this).get(MainViewModel.class);
 
         btnSelectApk = findViewById(R.id.btnSelectApk);
+        btnExportCsv = findViewById(R.id.btnExportCsv);
+        btnAiBenchmark = findViewById(R.id.btnAiBenchmark);
+        btnExportAiCsv = findViewById(R.id.btnExportAiCsv);
+        cbForceFullScan = findViewById(R.id.cbForceFullScan);
+        modelSpinner = findViewById(R.id.m4ModelSpinner);
+        tvStatus = findViewById(R.id.m4Status);
         tvFileName = findViewById(R.id.tvFileName);
         tvResult = findViewById(R.id.tvResult);
         progressBar = findViewById(R.id.progressBar);
 
-        progressBar.setVisibility(View.GONE);
-
-        tvFileName.setText("Chưa chọn APK");
-        tvResult.setText("Chọn một APK để bắt đầu phân tích.");
-    }
-
-    private void registerApkPicker() {
-
-        apkPickerLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-
-                    if (result.getResultCode() != RESULT_OK
-                            || result.getData() == null) {
-                        return;
-                    }
-
-                    Uri apkUri = result.getData().getData();
-
-                    if (apkUri == null) {
-                        showError("Không thể đọc APK.");
-                        return;
-                    }
-
-                    scanApk(apkUri);
-                }
-        );
-    }
-
-    private void openApkPicker() {
-
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-
-        intent.setType("application/vnd.android.package-archive");
-
-        apkPickerLauncher.launch(intent);
-    }
-
-    private void scanApk(Uri apkUri) {
-
-        btnSelectApk.setEnabled(false);
-        progressBar.setVisibility(View.VISIBLE);
-
-        tvResult.setText("Đang chuẩn bị phân tích APK...");
-
-        String fileName = getFileName(apkUri);
-
-        tvFileName.setText(fileName);
-
-        executorService.execute(() -> {
-
-            File temporaryApk = null;
-
-            try {
-
-                // 1. Copy APK vào cache.
-                temporaryApk = copyApkToCache(apkUri);
-
-                // 2. Khởi tạo bộ phân tích.
-                if (apkAnalyzer == null) {
-                    apkAnalyzer = new ApkAnalyzer(
-                            getApplicationContext()
-                    );
-                }
-
-                // 3. Trích xuất và vector hóa.
-                ApkAnalyzer.AnalysisResult analysis =
-                        apkAnalyzer.analyze(temporaryApk);
-
-                float[] featureVector =
-                        analysis.getFeatureVector();
-
-                // 4. Khởi tạo mô hình TFLite.
-                if (malwareClassifier == null) {
-                    malwareClassifier = new MalwareClassifier(
-                            getApplicationContext()
-                    );
-                }
-
-                // 5. Dự đoán.
-                MalwareClassifier.Prediction prediction =
-                        malwareClassifier.predict(featureVector);
-
-                // 6. Hiển thị kết quả.
-                runOnUiThread(() -> displayResult(
-                        analysis,
-                        prediction
-                ));
-
-            } catch (Exception e) {
-
-                String errorMessage = e.getMessage();
-
-                if (errorMessage == null) {
-                    errorMessage = e.getClass().getSimpleName();
-                }
-
-                String finalErrorMessage = errorMessage;
-
-                runOnUiThread(() -> showError(
-                        "Phân tích thất bại: " + finalErrorMessage
-                ));
-
-            } finally {
-
-                if (temporaryApk != null && temporaryApk.exists()) {
-                    temporaryApk.delete();
-                }
-
-                runOnUiThread(() -> {
-                    progressBar.setVisibility(View.GONE);
-                    btnSelectApk.setEnabled(true);
-                });
-            }
+        apkPicker = registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+            if (uri != null) startScan(uri);
         });
-    }
+        scanCsvExporter = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
+                    if (uri != null) viewModel.exportScanCsv(uri);
+                });
+        aiCsvExporter = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
+                    if (uri != null) viewModel.exportAiCsv(uri);
+                });
 
-    /**
-     * Sao chép APK từ Uri vào cache.
-     */
-    private File copyApkToCache(Uri uri) throws Exception {
+        setupModelSpinner();
+        btnSelectApk.setOnClickListener(v ->
+                apkPicker.launch(new String[]{"application/vnd.android.package-archive"}));
+        btnAiBenchmark.setOnClickListener(v -> viewModel.runAiBenchmark());
+        btnExportCsv.setOnClickListener(v -> scanCsvExporter.launch(BenchmarkStore.FILE_NAME));
+        btnExportAiCsv.setOnClickListener(v -> aiCsvExporter.launch(ModelBenchmarkStore.FILE_NAME));
+        findViewById(R.id.m4HistoryButton).setOnClickListener(v ->
+                startActivity(new Intent(this, ScanHistoryActivity.class)));
 
-        File outputFile = File.createTempFile(
-                "mobitive_scan_",
-                ".apk",
-                getCacheDir()
-        );
+        viewModel.getState().observe(this, this::render);
+        viewModel.getMessages().observe(this, message -> {
+            String text = message == null ? null : message.consume();
+            if (text != null) Toast.makeText(this, text, Toast.LENGTH_LONG).show();
+        });
 
-        try (
-                InputStream inputStream =
-                        getContentResolver().openInputStream(uri);
-
-                FileOutputStream outputStream =
-                        new FileOutputStream(outputFile)
-        ) {
-
-            if (inputStream == null) {
-                throw new Exception("Không thể mở APK.");
-            }
-
-            byte[] buffer = new byte[8192];
-
-            int length;
-
-            while ((length = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, length);
-            }
-
-            outputStream.flush();
-        }
-
-        return outputFile;
-    }
-
-    /**
-     * Lấy tên file từ Uri.
-     */
-    private String getFileName(Uri uri) {
-
-        String fileName = "Unknown.apk";
-
-        try (Cursor cursor = getContentResolver().query(
-                uri,
-                null,
-                null,
-                null,
-                null
-        )) {
-
-            if (cursor != null && cursor.moveToFirst()) {
-
-                int nameIndex = cursor.getColumnIndex(
-                        OpenableColumns.DISPLAY_NAME
-                );
-
-                if (nameIndex >= 0) {
-                    fileName = cursor.getString(nameIndex);
-                }
-            }
-
-        } catch (Exception ignored) {
-        }
-
-        return fileName;
-    }
-
-    /**
-     * Hiển thị kết quả phân tích.
-     */
-    private void displayResult(
-            ApkAnalyzer.AnalysisResult analysis,
-            MalwareClassifier.Prediction prediction) {
-
-        StringBuilder result = new StringBuilder();
-
-        result.append("SCAN COMPLETED\n\n");
-
-        result.append("RESULT: ")
-                .append(prediction.getLabel())
-                .append("\n\n");
-
-        result.append(String.format(
-                Locale.US,
-                "Malware probability: %.2f%%\n",
-                prediction.malwareProbability * 100f
-        ));
-
-        result.append(String.format(
-                Locale.US,
-                "Benign probability: %.2f%%\n\n",
-                prediction.benignProbability * 100f
-        ));
-
-        result.append("EXTRACTION STATISTICS\n\n");
-
-        result.append("DEX classes: ")
-                .append(analysis.getParsedClassCount())
-                .append("\n");
-
-        result.append("DEX methods: ")
-                .append(analysis.getParsedMethodCount())
-                .append("\n");
-
-        result.append("Invoke instructions: ")
-                .append(analysis.getInvokeInstructionCount())
-                .append("\n");
-
-        result.append("Matched methods: ")
-                .append(analysis.getMatchedMethodCount())
-                .append("\n");
-
-        result.append("Framework invokes: ")
-                .append(analysis.getFrameworkInvokeCount())
-                .append("\n\n");
-
-        result.append("FEATURE STATISTICS\n\n");
-
-        result.append("Extracted API: ")
-                .append(analysis.getExtractedApiCount())
-                .append("\n");
-
-        result.append("Extracted Manifest: ")
-                .append(analysis.getExtractedManifestCount())
-                .append("\n");
-
-        result.append("Active features: ")
-                .append(analysis.getActiveFeatureCount())
-                .append(" / 2915\n");
-
-        result.append("Unknown API features: ")
-                .append(analysis.getUnknownApiCount())
-                .append("\n");
-
-        result.append("Unknown Manifest features: ")
-                .append(analysis.getUnknownManifestCount())
-                .append("\n");
-
-        tvResult.setText(result.toString());
-    }
-
-    private void showError(String message) {
-
-        tvResult.setText(message);
-
-        Toast.makeText(
-                this,
-                message,
-                Toast.LENGTH_LONG
-        ).show();
+        // "Open with MobiTive" from a file manager / browser download: scan before installing.
+        if (savedInstanceState == null) handleViewIntent(getIntent());
     }
 
     @Override
-    protected void onDestroy() {
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleViewIntent(intent);
+    }
 
-        super.onDestroy();
-
-        if (executorService != null) {
-            executorService.shutdown();
+    private void handleViewIntent(Intent intent) {
+        if (intent != null && Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
+            startScan(intent.getData());
         }
+    }
 
-        if (malwareClassifier != null) {
-            malwareClassifier.close();
-            malwareClassifier = null;
+    private void startScan(Uri uri) {
+        ModelCatalog.Choice choice = selectedModel();
+        if (choice == null) return;
+        viewModel.scan(uri, displayName(uri), choice, cbForceFullScan.isChecked());
+    }
+
+    private void render(MainViewModel.UiState s) {
+        progressBar.setVisibility(s.busy ? View.VISIBLE : View.GONE);
+        tvFileName.setText(s.fileName);
+        tvStatus.setText(s.status);
+        tvResult.setText(s.result);
+        boolean idle = !s.busy && !models.isEmpty();
+        btnSelectApk.setEnabled(idle);
+        cbForceFullScan.setEnabled(idle);
+        modelSpinner.setEnabled(idle);
+        btnAiBenchmark.setEnabled(idle && s.hasVector);
+        btnExportCsv.setEnabled(!s.busy && s.scanCsvAvailable);
+        btnExportAiCsv.setEnabled(!s.busy && s.aiCsvAvailable);
+    }
+
+    private void setupModelSpinner() {
+        try {
+            models = ModelCatalog.installed(getApplicationContext());
+        } catch (Exception e) {
+            models = new ArrayList<>();
+            viewModel.disableScanning("Thiếu model trong assets/models: " + e.getMessage());
+            return;
         }
+        List<String> titles = new ArrayList<>();
+        for (ModelCatalog.Choice item : models) titles.add(item.title);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this, android.R.layout.simple_spinner_item, titles);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        modelSpinner.setAdapter(adapter);
+
+        String previous = getPreferences(MODE_PRIVATE).getString(PREF_MODEL_ID, "gru128_fp32");
+        for (int i = 0; i < models.size(); i++) {
+            if (models.get(i).id.equals(previous)) {
+                modelSpinner.setSelection(i);
+                break;
+            }
+        }
+        modelSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position >= 0 && position < models.size()) {
+                    getPreferences(MODE_PRIVATE).edit()
+                            .putString(PREF_MODEL_ID, models.get(position).id).apply();
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) { }
+        });
+    }
+
+    private ModelCatalog.Choice selectedModel() {
+        int position = modelSpinner.getSelectedItemPosition();
+        if (position < 0 || position >= models.size()) {
+            Toast.makeText(this, "Chưa có model AI phù hợp.", Toast.LENGTH_LONG).show();
+            return null;
+        }
+        return models.get(position);
+    }
+
+    private String displayName(Uri uri) {
+        try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (index >= 0 && cursor.getString(index) != null) return cursor.getString(index);
+            }
+        } catch (Exception ignored) {
+            // file:// URIs and some providers have no metadata
+        }
+        String last = uri.getLastPathSegment();
+        return last == null ? "Unknown.apk" : last.substring(last.lastIndexOf('/') + 1);
     }
 }

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#F3F6FB" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="20dp">
+        <Button android:id="@+id/m4Back" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="← TRỞ LẠI"
+            android:textColor="#142746" android:backgroundTint="#E6EDF6" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:text="Lịch sử quét"
+            android:textColor="#142746" android:textSize="26sp" android:textStyle="bold" />
+        <TextView android:id="@+id/m4HistoryCount" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="6dp"
+            android:text="Đang tải..." android:textColor="#657895" android:textSize="13sp" />
+        <Button android:id="@+id/m4ClearHistory" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="14dp"
+            android:text="XÓA LỊCH SỬ TRÊN MÁY" android:textColor="#A83743"
+            android:backgroundTint="#F7E4E7" />
+        <LinearLayout android:id="@+id/m4HistoryList" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="18dp"
+            android:orientation="vertical" />
+    </LinearLayout>
+</ScrollView>

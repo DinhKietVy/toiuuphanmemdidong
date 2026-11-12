@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MobiTive.M4" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">#087E74</item>
+        <item name="colorPrimaryVariant">#102542</item>
+        <item name="colorSecondary">#087E74</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:statusBarColor">#102542</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">#F3F6FB</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

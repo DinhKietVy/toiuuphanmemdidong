@@ -74,7 +74,7 @@ def main():
 
     print("\n[DEX] Extracting API calls...")
 
-    dex_features = extract_api_calls(dex_list)
+    dex_features = extract_api_calls(apk_path)
 
     print(
         "Unique API calls:",
@@ -82,8 +82,8 @@ def main():
     )
 
     print(
-        "Invoke instructions:",
-        dex_features["invoke_instruction_count"]
+        "Method refs (method_ids):",
+        dex_features["method_ref_count"]
     )
 
     # -----------------------------------

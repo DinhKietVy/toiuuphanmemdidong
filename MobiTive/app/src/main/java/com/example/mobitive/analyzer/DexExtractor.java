@@ -1,36 +1,51 @@
-
 package com.example.mobitive.analyzer;
 
-import org.jf.dexlib2.DexFileFactory;
-import org.jf.dexlib2.Opcodes;
-import org.jf.dexlib2.iface.ClassDef;
-import org.jf.dexlib2.iface.DexFile;
-import org.jf.dexlib2.iface.Method;
-import org.jf.dexlib2.iface.MethodImplementation;
-import org.jf.dexlib2.iface.instruction.Instruction;
-import org.jf.dexlib2.iface.instruction.ReferenceInstruction;
-import org.jf.dexlib2.iface.reference.MethodReference;
+import android.os.Debug;
+import android.util.Log;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+/**
+ * M5: API-call extraction from the DEX method reference table (method_ids),
+ * following the MobiTive paper ("binary code" extraction, no decompiling).
+ *
+ * Previous versions (M0–M3.4) walked every bytecode instruction with dexlib2
+ * and kept the targets of invoke-* instructions. That was ~90% of scan time.
+ * Every framework method that is invoked has an entry in method_ids, so reading
+ * the table yields the same platform-API set at O(#method_ids) cost.
+ *
+ * Feature definition (shared with the Python extractor):
+ *   method_ids entries whose defining class starts with a FRAMEWORK_PREFIX
+ *   and does NOT start with a BUNDLED_LIBRARY_PREFIX.
+ *
+ * Note: we deliberately do NOT drop classes defined inside the APK: R8 inserts
+ * stub class_defs for framework classes newer than minSdk (AppComponentFactory,
+ * Toast$Callback, ...), and those are real platform API uses.
+ */
 public class DexExtractor {
 
-    private static final String[] FRAMEWORK_PREFIXES = {
+    private static final String TAG = "MobiTiveDexProfile";
+
+    /** Defensive caps against zip bombs / malformed APKs. */
+    private static final long MAX_DEX_BYTES = 128L * 1024 * 1024;
+    private static final long MAX_TOTAL_DEX_BYTES = 512L * 1024 * 1024;
+
+    private static final Pattern DEX_ENTRY = Pattern.compile("classes(\\d+)?\\.dex");
+
+    static final String[] FRAMEWORK_PREFIXES = {
             "Landroid/",
             "Ljava/",
             "Ljavax/",
@@ -41,247 +56,142 @@ public class DexExtractor {
             "Lorg/xmlpull/"
     };
 
-    /**
-     * Trích xuất API calls từ tất cả DEX trong APK.
-     */
-    public DexFeatures extract(File apkFile, File cacheDir)
-            throws IOException {
+    /** Old support/arch libraries live under Landroid/ but are bundled app code. */
+    static final String[] BUNDLED_LIBRARY_PREFIXES = {
+            "Landroid/support/",
+            "Landroid/arch/"
+    };
+
+    public DexFeatures extract(File apkFile) throws IOException {
 
         if (apkFile == null || !apkFile.exists()) {
             throw new IOException("APK file không tồn tại.");
         }
 
-        if (cacheDir == null) {
-            throw new IOException("Cache directory không hợp lệ.");
-        }
+        // descriptor -> number of DEX files that reference it.
+        Map<String, Integer> apiCallCount = new HashMap<>(8192);
+        int[] bundledRefCount = {0};
 
-        if (!cacheDir.exists() && !cacheDir.mkdirs()) {
-            throw new IOException("Không thể tạo cache directory.");
-        }
-
-        Set<String> apiCalls = new TreeSet<>();
-        Map<String, Integer> apiCallCount = new HashMap<>();
-
-        int invokeInstructionCount = 0;
-        int matchedMethodCount = 0;
-        int frameworkInvokeCount = 0;
-
-        int parsedClassCount = 0;
-        int parsedMethodCount = 0;
-
-        List<File> temporaryDexFiles = new ArrayList<>();
+        int dexFileCount = 0;
+        int classDefCount = 0;
+        int methodRefCount = 0;
+        int frameworkMethodRefCount = 0;
+        long totalDexBytes = 0;
 
         try (ZipFile zipFile = new ZipFile(apkFile)) {
-
-            Enumeration<? extends ZipEntry> entries =
-                    zipFile.entries();
-
-            int dexIndex = 0;
+            Enumeration<? extends ZipEntry> entries = zipFile.entries();
 
             while (entries.hasMoreElements()) {
-
                 ZipEntry entry = entries.nextElement();
-
                 String entryName = entry.getName();
-
-                // Chỉ xử lý classes.dex, classes2.dex,...
-                if (!isDexEntry(entryName)) {
+                if (!DEX_ENTRY.matcher(entryName).matches()) {
                     continue;
                 }
+                dexFileCount++;
 
-                dexIndex++;
+                final long wall0 = System.nanoTime();
+                final long cpu0 = Debug.threadCpuTimeNanos();
 
-                File dexFile = new File(
-                        cacheDir,
-                        "mobitive_temp_" + System.nanoTime() + ".dex"
-                );
-
-                temporaryDexFiles.add(dexFile);
-
-                // Giải nén DEX vào file tạm.
-                try (
-                        InputStream input =
-                                zipFile.getInputStream(entry);
-
-                        FileOutputStream output =
-                                new FileOutputStream(dexFile)
-                ) {
-                    byte[] buffer = new byte[8192];
-                    int length;
-
-                    while ((length = input.read(buffer)) != -1) {
-                        output.write(buffer, 0, length);
-                    }
+                byte[] bytes = readEntry(zipFile, entry);
+                totalDexBytes += bytes.length;
+                if (totalDexBytes > MAX_TOTAL_DEX_BYTES) {
+                    throw new IOException("Tổng dung lượng DEX vượt giới hạn.");
                 }
 
-                // Đọc DEX bằng dexlib2.
-                DexFile dex = DexFileFactory.loadDexFile(
-                        dexFile,
-                        Opcodes.getDefault()
-                );
+                final long wall1 = System.nanoTime();
+                final long cpu1 = Debug.threadCpuTimeNanos();
 
-                for (ClassDef classDef : dex.getClasses()) {
+                DexMethodTable table = new DexMethodTable(bytes);
+                classDefCount += table.classDefCount();
+                methodRefCount += table.methodRefCount();
 
-                    parsedClassCount++;
-
-                    for (Method method : classDef.getMethods()) {
-
-                        parsedMethodCount++;
-
-                        MethodImplementation implementation =
-                                method.getImplementation();
-
-                        if (implementation == null) {
-                            continue;
-                        }
-
-                        for (Instruction instruction :
-                                implementation.getInstructions()) {
-
-                            String opcodeName = instruction
-                                    .getOpcode()
-                                    .name()
-                                    .toLowerCase(Locale.ROOT)
-                                    .replace('_', '-');
-
-                            // Tương đương instruction_name.startswith("invoke-")
-                            if (!opcodeName.startsWith("invoke-")) {
-                                continue;
+                int accepted = table.forEachMethodRef(
+                        DexExtractor::isFrameworkClass,
+                        (definingClass, descriptor) -> {
+                            // Static initializers are definitions (e.g. R8 API stubs), never calls.
+                            if (descriptor.contains(";-><clinit>(")) {
+                                return;
                             }
-
-                            invokeInstructionCount++;
-
-                            if (!(instruction instanceof ReferenceInstruction)) {
-                                continue;
+                            if (isBundledLibraryClass(definingClass)) {
+                                bundledRefCount[0]++;
+                                return;
                             }
+                            Integer c = apiCallCount.get(descriptor);
+                            apiCallCount.put(descriptor, c == null ? 1 : c + 1);
+                        });
+                frameworkMethodRefCount += accepted;
 
-                            Object reference =
-                                    ((ReferenceInstruction) instruction)
-                                            .getReference();
-
-                            if (!(reference instanceof MethodReference)) {
-                                continue;
-                            }
-
-                            MethodReference methodReference =
-                                    (MethodReference) reference;
-
-                            String descriptor =
-                                    buildMethodDescriptor(methodReference);
-
-                            matchedMethodCount++;
-
-                            if (!isFrameworkApi(descriptor)) {
-                                continue;
-                            }
-
-                            frameworkInvokeCount++;
-
-                            apiCalls.add(descriptor);
-
-                            Integer count = apiCallCount.get(descriptor);
-
-                            apiCallCount.put(
-                                    descriptor,
-                                    count == null ? 1 : count + 1
-                            );
-                        }
-                    }
-                }
+                final long wall2 = System.nanoTime();
+                final long cpu2 = Debug.threadCpuTimeNanos();
+                Log.i(TAG, String.format(Locale.US,
+                        "mode=method_ids dex=%s bytes=%d unzip_wall_ms=%.3f unzip_cpu_ms=%.3f " +
+                        "parse_wall_ms=%.3f parse_cpu_ms=%.3f classes=%d method_refs=%d framework_refs=%d",
+                        entryName, bytes.length,
+                        (wall1 - wall0) / 1e6, (cpu1 - cpu0) / 1e6,
+                        (wall2 - wall1) / 1e6, (cpu2 - cpu1) / 1e6,
+                        table.classDefCount(), table.methodRefCount(), accepted));
             }
+        }
 
-            if (dexIndex == 0) {
-                throw new IOException(
-                        "Không tìm thấy classes.dex trong APK."
-                );
-            }
-
-        } finally {
-
-            // Xóa các file DEX tạm sau khi phân tích.
-            for (File file : temporaryDexFiles) {
-                if (file.exists()) {
-                    // Nếu không xóa được ngay, Android có thể dọn sau.
-                    file.delete();
-                }
-            }
+        if (dexFileCount == 0) {
+            throw new IOException("Không tìm thấy classes.dex trong APK.");
         }
 
         return new DexFeatures(
-                apiCalls,
+                apiCallCount.keySet(),
                 apiCallCount,
-                invokeInstructionCount,
-                matchedMethodCount,
-                frameworkInvokeCount,
-                parsedClassCount,
-                parsedMethodCount
+                dexFileCount,
+                classDefCount,
+                methodRefCount,
+                frameworkMethodRefCount,
+                bundledRefCount[0]
         );
     }
 
-    /**
-     * Kiểm tra tên entry có phải DEX hay không.
-     */
-    private boolean isDexEntry(String name) {
-
-        if (name == null || !name.matches("classes(\\d+)?\\.dex")) {
-            return false;
+    private static byte[] readEntry(ZipFile zipFile, ZipEntry entry) throws IOException {
+        long declared = entry.getSize();
+        if (declared > MAX_DEX_BYTES) {
+            throw new IOException("DEX quá lớn: " + entry.getName());
         }
-
-        return true;
-    }
-
-    /**
-     * Tạo descriptor theo định dạng Androguard output
-     * được sử dụng trong Python extractor.
-     *
-     * Ví dụ:
-     * Landroid/view/View;->setVisibility(I)V
-     *
-     * Với nhiều tham số, Androguard dùng dấu cách:
-     * Landroid/view/ViewGroup;->drawChild(
-     * Landroid/graphics/Canvas; Landroid/view/View; J)Z
-     */
-    private String buildMethodDescriptor(
-            MethodReference methodReference) {
-
-        StringBuilder descriptor = new StringBuilder();
-
-        descriptor.append(methodReference.getDefiningClass());
-        descriptor.append("->");
-        descriptor.append(methodReference.getName());
-        descriptor.append("(");
-
-        boolean first = true;
-
-        for (CharSequence parameter :
-                methodReference.getParameterTypes()) {
-
-            if (!first) {
-                descriptor.append(" ");
+        try (InputStream input = zipFile.getInputStream(entry)) {
+            if (declared >= 0) {
+                byte[] out = new byte[(int) declared];
+                int off = 0;
+                while (off < out.length) {
+                    int n = input.read(out, off, out.length - off);
+                    if (n < 0) throw new IOException("DEX bị cắt cụt: " + entry.getName());
+                    off += n;
+                }
+                return out;
             }
-
-            descriptor.append(parameter);
-            first = false;
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream(1 << 20);
+            byte[] chunk = new byte[64 * 1024];
+            int n;
+            while ((n = input.read(chunk)) != -1) {
+                buffer.write(chunk, 0, n);
+                if (buffer.size() > MAX_DEX_BYTES) {
+                    throw new IOException("DEX quá lớn: " + entry.getName());
+                }
+            }
+            return buffer.toByteArray();
         }
-
-        descriptor.append(")");
-        descriptor.append(methodReference.getReturnType());
-
-        return descriptor.toString();
     }
 
-    /**
-     * Kiểm tra API có thuộc framework prefixes hay không.
-     */
-    private boolean isFrameworkApi(String descriptor) {
-
-        for (String prefix : FRAMEWORK_PREFIXES) {
-
-            if (descriptor.startsWith(prefix)) {
+    static boolean isBundledLibraryClass(String definingClass) {
+        for (String prefix : BUNDLED_LIBRARY_PREFIXES) {
+            if (definingClass.startsWith(prefix)) {
                 return true;
             }
         }
+        return false;
+    }
 
+    static boolean isFrameworkClass(String definingClass) {
+        for (String prefix : FRAMEWORK_PREFIXES) {
+            if (definingClass.startsWith(prefix)) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -291,70 +201,40 @@ public class DexExtractor {
     public static class DexFeatures {
 
         private final Set<String> apiCalls;
+        /** API descriptor -> number of DEX files referencing it (>= 1). */
         private final Map<String, Integer> apiCallCount;
 
-        private final int invokeInstructionCount;
-        private final int matchedMethodCount;
-        private final int frameworkInvokeCount;
-
-        private final int parsedClassCount;
-        private final int parsedMethodCount;
+        private final int dexFileCount;
+        private final int classDefCount;
+        private final int methodRefCount;
+        private final int frameworkMethodRefCount;
+        private final int bundledLibraryRefCount;
 
         public DexFeatures(
                 Set<String> apiCalls,
                 Map<String, Integer> apiCallCount,
-                int invokeInstructionCount,
-                int matchedMethodCount,
-                int frameworkInvokeCount,
-                int parsedClassCount,
-                int parsedMethodCount) {
+                int dexFileCount,
+                int classDefCount,
+                int methodRefCount,
+                int frameworkMethodRefCount,
+                int bundledLibraryRefCount) {
 
-            this.apiCalls = Collections.unmodifiableSet(
-                    new HashSet<>(apiCalls)
-            );
-
-            this.apiCallCount = Collections.unmodifiableMap(
-                    new HashMap<>(apiCallCount)
-            );
-
-            this.invokeInstructionCount = invokeInstructionCount;
-            this.matchedMethodCount = matchedMethodCount;
-            this.frameworkInvokeCount = frameworkInvokeCount;
-
-            this.parsedClassCount = parsedClassCount;
-            this.parsedMethodCount = parsedMethodCount;
+            this.apiCalls = Collections.unmodifiableSet(new HashSet<>(apiCalls));
+            this.apiCallCount = Collections.unmodifiableMap(new HashMap<>(apiCallCount));
+            this.dexFileCount = dexFileCount;
+            this.classDefCount = classDefCount;
+            this.methodRefCount = methodRefCount;
+            this.frameworkMethodRefCount = frameworkMethodRefCount;
+            this.bundledLibraryRefCount = bundledLibraryRefCount;
         }
 
-        public Set<String> getApiCalls() {
-            return apiCalls;
-        }
-
-        public Map<String, Integer> getApiCallCount() {
-            return apiCallCount;
-        }
-
-        public int getUniqueApiCallCount() {
-            return apiCalls.size();
-        }
-
-        public int getInvokeInstructionCount() {
-            return invokeInstructionCount;
-        }
-
-        public int getMatchedMethodCount() {
-            return matchedMethodCount;
-        }
-
-        public int getFrameworkInvokeCount() {
-            return frameworkInvokeCount;
-        }
-
-        public int getParsedClassCount() {
-            return parsedClassCount;
-        }
-
-        public int getParsedMethodCount() {
-            return parsedMethodCount;
-        }
+        public Set<String> getApiCalls() { return apiCalls; }
+        public Map<String, Integer> getApiCallCount() { return apiCallCount; }
+        public int getUniqueApiCallCount() { return apiCalls.size(); }
+        public int getDexFileCount() { return dexFileCount; }
+        public int getClassDefCount() { return classDefCount; }
+        public int getMethodRefCount() { return methodRefCount; }
+        public int getFrameworkMethodRefCount() { return frameworkMethodRefCount; }
+        public int getBundledLibraryRefCount() { return bundledLibraryRefCount; }
     }
 }

@@ -29,3 +29,10 @@ data/processed/extracted/
 # OS
 .DS_Store
 Thumbs.db
+
+# Benchmark APK set (download via scripts/prepare_benchmark_apks.py; keep bench_apks.csv)
+data/bench_apks/*.apk
+data/bench_apks/*.part
+
+# Model variants: the committed copy lives in MobiTive/app/src/androidTest/assets/accel/models
+artifacts/models/variants/

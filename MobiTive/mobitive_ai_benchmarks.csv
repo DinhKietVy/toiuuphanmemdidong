@@ -1,0 +1,4 @@
+epoch_ms,device,android_sdk,model_id,threads,model_bytes,warmup,iterations,init_wall_ms,inference_p50_ms,inference_p95_ms,inference_mean_ms,inference_thread_cpu_mean_ms,benign_probability,malware_probability,same_label_as_baseline,probability_delta_from_baseline,status,error
+1794333263558,"Genymobile Pixel XL",35,"mobitive_gru",4,4684840,5,30,19.527342,13.763481,30.024487,12.331884,2.322114,0.994925,0.005075,true,0.000000,OK,
+1794333263558,"Genymobile Pixel XL",35,"mobitive_gru",1,4684840,5,30,1.011302,0.405917,18.846250,3.704205,0.617319,0.994925,0.005075,true,0.000000,OK,
+1794333263558,"Genymobile Pixel XL",35,"mobitive_gru",2,4684840,5,30,1.059073,1.933206,26.181260,8.983134,1.770995,0.994925,0.005075,true,0.000000,OK,

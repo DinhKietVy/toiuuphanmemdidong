@@ -5,6 +5,7 @@ import android.content.Context;
 
 import com.example.mobitive.ml.FeatureDictionary;
 import com.example.mobitive.ml.FeatureVectorizer;
+import com.example.mobitive.benchmark.ScanBenchmark;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,11 +35,8 @@ public class ApkAnalyzer {
         // Khởi tạo bộ vector hóa.
         vectorizer = new FeatureVectorizer(dictionary);
 
-        if (dictionary.getFeatureCount() != 2915) {
-            throw new IllegalStateException(
-                    "Feature Dictionary phải có 2915 features, hiện tại: "
-                            + dictionary.getFeatureCount()
-            );
+        if (dictionary.getFeatureCount() <= 0) {
+            throw new IllegalStateException("Feature Dictionary rỗng.");
         }
     }
 
@@ -46,6 +44,10 @@ public class ApkAnalyzer {
      * Phân tích một APK và tạo vector đặc trưng.
      */
     public AnalysisResult analyze(File apkFile) throws Exception {
+        return analyze(apkFile, null);
+    }
+
+    public AnalysisResult analyze(File apkFile, ScanBenchmark benchmark) throws Exception {
 
         if (apkFile == null || !apkFile.exists()) {
             throw new IOException("APK không tồn tại.");
@@ -55,8 +57,10 @@ public class ApkAnalyzer {
         // 1. Trích xuất Manifest
         // --------------------------------
 
+        ScanBenchmark.Token manifestTiming = benchmark == null ? null : benchmark.startStage();
         ManifestExtractor.ManifestFeatures manifest =
                 manifestExtractor.extract(apkFile);
+        if (benchmark != null) benchmark.endStage("manifest", manifestTiming);
 
         Set<String> manifestFeatures = manifest.toFeatureSet();
 
@@ -64,8 +68,10 @@ public class ApkAnalyzer {
         // 2. Trích xuất DEX
         // --------------------------------
 
+        ScanBenchmark.Token dexTiming = benchmark == null ? null : benchmark.startStage();
         DexExtractor.DexFeatures dex =
-                dexExtractor.extract(apkFile, context.getCacheDir());
+                dexExtractor.extract(apkFile);
+        if (benchmark != null) benchmark.endStage("dex", dexTiming);
 
         Set<String> apiFeatures = dex.getApiCalls();
 
@@ -73,6 +79,7 @@ public class ApkAnalyzer {
         // 3. Kiểm tra feature không được hỗ trợ
         // --------------------------------
 
+        ScanBenchmark.Token lookupTiming = benchmark == null ? null : benchmark.startStage();
         Set<String> unknownApiFeatures = new HashSet<>();
 
         for (String feature : apiFeatures) {
@@ -93,19 +100,22 @@ public class ApkAnalyzer {
         // 4. Vector hóa
         // --------------------------------
 
+        if (benchmark != null) benchmark.endStage("feature_lookup", lookupTiming);
+        ScanBenchmark.Token vectorTiming = benchmark == null ? null : benchmark.startStage();
         float[] vector = vectorizer.vectorize(
                 apiFeatures,
                 manifestFeatures
         );
+        if (benchmark != null) benchmark.endStage("vectorize", vectorTiming);
 
         // --------------------------------
         // 5. Kiểm tra kết quả
         // --------------------------------
 
-        if (vector.length != 2915) {
+        if (vector.length != dictionary.getFeatureCount()) {
             throw new IllegalStateException(
-                    "Vector phải có 2915 chiều, hiện tại: "
-                            + vector.length
+                    "Vector phải có " + dictionary.getFeatureCount()
+                            + " chiều, hiện tại: " + vector.length
             );
         }
 
@@ -119,11 +129,11 @@ public class ApkAnalyzer {
                 activeFeatures,
                 unknownApiFeatures.size(),
                 unknownManifestFeatures.size(),
-                dex.getParsedClassCount(),
-                dex.getParsedMethodCount(),
-                dex.getInvokeInstructionCount(),
-                dex.getMatchedMethodCount(),
-                dex.getFrameworkInvokeCount(),
+                dex.getDexFileCount(),
+                dex.getClassDefCount(),
+                dex.getMethodRefCount(),
+                dex.getFrameworkMethodRefCount(),
+                dex.getBundledLibraryRefCount(),
                 manifest,
                 dex
         );
@@ -143,12 +153,12 @@ public class ApkAnalyzer {
         private final int unknownApiCount;
         private final int unknownManifestCount;
 
-        private final int parsedClassCount;
-        private final int parsedMethodCount;
-
-        private final int invokeInstructionCount;
-        private final int matchedMethodCount;
-        private final int frameworkInvokeCount;
+        // DEX method-table statistics (M5).
+        private final int dexFileCount;
+        private final int classDefCount;
+        private final int methodRefCount;
+        private final int frameworkMethodRefCount;
+        private final int bundledLibraryRefCount;
 
         private final ManifestExtractor.ManifestFeatures manifest;
         private final DexExtractor.DexFeatures dex;
@@ -160,11 +170,11 @@ public class ApkAnalyzer {
                 int activeFeatureCount,
                 int unknownApiCount,
                 int unknownManifestCount,
-                int parsedClassCount,
-                int parsedMethodCount,
-                int invokeInstructionCount,
-                int matchedMethodCount,
-                int frameworkInvokeCount,
+                int dexFileCount,
+                int classDefCount,
+                int methodRefCount,
+                int frameworkMethodRefCount,
+                int bundledLibraryRefCount,
                 ManifestExtractor.ManifestFeatures manifest,
                 DexExtractor.DexFeatures dex) {
 
@@ -177,67 +187,28 @@ public class ApkAnalyzer {
             this.unknownApiCount = unknownApiCount;
             this.unknownManifestCount = unknownManifestCount;
 
-            this.parsedClassCount = parsedClassCount;
-            this.parsedMethodCount = parsedMethodCount;
-
-            this.invokeInstructionCount = invokeInstructionCount;
-            this.matchedMethodCount = matchedMethodCount;
-            this.frameworkInvokeCount = frameworkInvokeCount;
+            this.dexFileCount = dexFileCount;
+            this.classDefCount = classDefCount;
+            this.methodRefCount = methodRefCount;
+            this.frameworkMethodRefCount = frameworkMethodRefCount;
+            this.bundledLibraryRefCount = bundledLibraryRefCount;
 
             this.manifest = manifest;
             this.dex = dex;
         }
 
-        public float[] getFeatureVector() {
-            return featureVector;
-        }
-
-        public int getExtractedApiCount() {
-            return extractedApiCount;
-        }
-
-        public int getExtractedManifestCount() {
-            return extractedManifestCount;
-        }
-
-        public int getActiveFeatureCount() {
-            return activeFeatureCount;
-        }
-
-        public int getUnknownApiCount() {
-            return unknownApiCount;
-        }
-
-        public int getUnknownManifestCount() {
-            return unknownManifestCount;
-        }
-
-        public int getParsedClassCount() {
-            return parsedClassCount;
-        }
-
-        public int getParsedMethodCount() {
-            return parsedMethodCount;
-        }
-
-        public int getInvokeInstructionCount() {
-            return invokeInstructionCount;
-        }
-
-        public int getMatchedMethodCount() {
-            return matchedMethodCount;
-        }
-
-        public int getFrameworkInvokeCount() {
-            return frameworkInvokeCount;
-        }
-
-        public ManifestExtractor.ManifestFeatures getManifest() {
-            return manifest;
-        }
-
-        public DexExtractor.DexFeatures getDex() {
-            return dex;
-        }
+        public float[] getFeatureVector() { return featureVector; }
+        public int getExtractedApiCount() { return extractedApiCount; }
+        public int getExtractedManifestCount() { return extractedManifestCount; }
+        public int getActiveFeatureCount() { return activeFeatureCount; }
+        public int getUnknownApiCount() { return unknownApiCount; }
+        public int getUnknownManifestCount() { return unknownManifestCount; }
+        public int getDexFileCount() { return dexFileCount; }
+        public int getClassDefCount() { return classDefCount; }
+        public int getMethodRefCount() { return methodRefCount; }
+        public int getFrameworkMethodRefCount() { return frameworkMethodRefCount; }
+        public int getBundledLibraryRefCount() { return bundledLibraryRefCount; }
+        public ManifestExtractor.ManifestFeatures getManifest() { return manifest; }
+        public DexExtractor.DexFeatures getDex() { return dex; }
     }
 }

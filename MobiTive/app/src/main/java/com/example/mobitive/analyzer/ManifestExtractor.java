@@ -197,7 +197,7 @@ public class ManifestExtractor {
             }
 
             for (String feature : hardwareFeatures) {
-                features.add("feature:" + feature);
+                features.add("hardware:" + feature);
             }
 
             return features;

@@ -5,7 +5,10 @@
         android:allowBackup="false"
         android:label="MobiTive"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MobiTive">
+        android:theme="@style/Theme.MobiTive.M4">
+
+        <activity android:name="com.example.mobitive.history.ScanHistoryActivity"
+            android:exported="false" />
 
         <activity
             android:name="com.example.mobitive.MainActivity"
@@ -14,6 +17,15 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- "Open with MobiTive": scan a downloaded APK before installing it. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/vnd.android.package-archive" />
             </intent-filter>
 
         </activity>
