@@ -18,6 +18,9 @@ import java.util.Map;
  */
 public final class ScanBenchmark {
 
+    /** Pipeline version written to every CSV row (M7 = method_ids DEX + 1-pass copy/hash). */
+    public static final String APP_VERSION = "M7";
+
     private static final String[] STAGES = {
             "copy_apk", "hash_apk", "cache_read", "cache_write", "init_analyzer", "manifest", "dex",
             "feature_lookup", "vectorize", "init_model", "inference", "total"
@@ -44,8 +47,50 @@ public final class ScanBenchmark {
     private String status = "IN_PROGRESS";
     private String error = "";
 
+    // M7: device / run context for cross-device comparison.
+    private String source = "ui";
+    private int iteration = -1;
+    private int thermalStatus = -1;
+    private long totalRamMb = -1;
+    private final long[] gcStart = readGcStats();
+    private long[] gcDelta = {-1, -1, -1, -1};
+
     public ScanBenchmark(String apkName) {
         this.apkName = apkName == null ? "unknown.apk" : apkName;
+    }
+
+    /** "ui" for user scans, "harness" for the automated benchmark; iteration < 0 = warm-up. */
+    public void setRunInfo(String source, int iteration) {
+        this.source = source == null ? "ui" : source;
+        this.iteration = iteration;
+    }
+
+    /** PowerManager thermal status (0 = none ... 6 = shutdown) and total RAM. */
+    public void setDeviceState(int thermalStatus, long totalRamMb) {
+        this.thermalStatus = thermalStatus;
+        this.totalRamMb = totalRamMb;
+    }
+
+    /** ART GC counters: {gc-count, gc-time ms, blocking-gc-count, blocking-gc-time ms}. */
+    private static long[] readGcStats() {
+        String[] keys = {"art.gc.gc-count", "art.gc.gc-time",
+                "art.gc.blocking-gc-count", "art.gc.blocking-gc-time"};
+        long[] values = new long[keys.length];
+        for (int i = 0; i < keys.length; i++) {
+            try {
+                values[i] = Long.parseLong(Debug.getRuntimeStat(keys[i]));
+            } catch (RuntimeException e) {
+                values[i] = -1;
+            }
+        }
+        return values;
+    }
+
+    static String socName() {
+        if (Build.VERSION.SDK_INT >= 31) {
+            return Build.SOC_MANUFACTURER + " " + Build.SOC_MODEL;
+        }
+        return Build.HARDWARE;
     }
 
     public Token startStage() {
@@ -123,6 +168,10 @@ public final class ScanBenchmark {
         this.error = error == null ? "" : error;
         wallMs.put("total", (SystemClock.elapsedRealtimeNanos() - startedWallNs) / 1_000_000.0);
         threadCpuMs.put("total", (Debug.threadCpuTimeNanos() - startedCpuNs) / 1_000_000.0);
+        long[] gcEnd = readGcStats();
+        for (int i = 0; i < gcEnd.length; i++) {
+            gcDelta[i] = gcStart[i] < 0 || gcEnd[i] < 0 ? -1 : gcEnd[i] - gcStart[i];
+        }
     }
 
     public String readableSummary() {
@@ -159,6 +208,8 @@ public final class ScanBenchmark {
             builder.append(',').append(stage).append("_thread_cpu_ms");
         }
         builder.append(",cache_mode,apk_sha256,pss_after_analysis_kb");
+        builder.append(",source,iteration,soc,cpu_cores,total_ram_mb,thermal_status," +
+                "gc_count,gc_time_ms,blocking_gc_count,blocking_gc_time_ms,app_version");
         return builder.toString();
     }
 
@@ -183,6 +234,16 @@ public final class ScanBenchmark {
         builder.append(',').append(quote(cacheMode));
         builder.append(',').append(quote(apkSha256));
         builder.append(',').append(pssAfterAnalysisKb);
+        builder.append(',').append(quote(source));
+        builder.append(',').append(iteration);
+        builder.append(',').append(quote(socName()));
+        builder.append(',').append(Runtime.getRuntime().availableProcessors());
+        builder.append(',').append(totalRamMb);
+        builder.append(',').append(thermalStatus);
+        for (long value : gcDelta) {
+            builder.append(',').append(value);
+        }
+        builder.append(',').append(quote(APP_VERSION));
         return builder.toString();
     }
 

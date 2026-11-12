@@ -30,7 +30,25 @@ public final class BenchmarkStore {
     }
 
     public static synchronized void append(Context context, ScanBenchmark benchmark) throws IOException {
-        File file = localFile(context);
+        appendTo(localFile(context), benchmark);
+    }
+
+    /**
+     * Appends one row to {@code file}. If the file was written by an older app
+     * version with different columns, it is moved to "*.prev.csv" first so a
+     * single CSV never mixes two header formats.
+     */
+    public static synchronized void appendTo(File file, ScanBenchmark benchmark) throws IOException {
+        if (file.exists() && file.length() > 0 && !ScanBenchmark.csvHeader().equals(firstLine(file))) {
+            File previous = new File(file.getParentFile(),
+                    file.getName().replace(".csv", "") + ".prev.csv");
+            if (previous.exists() && !previous.delete()) {
+                throw new IOException("Không xoá được CSV cũ: " + previous.getName());
+            }
+            if (!file.renameTo(previous)) {
+                throw new IOException("Không đổi tên được CSV cũ: " + file.getName());
+            }
+        }
         boolean needHeader = !file.exists() || file.length() == 0;
         try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
                 new FileOutputStream(file, true), StandardCharsets.UTF_8))) {
@@ -40,6 +58,14 @@ public final class BenchmarkStore {
             }
             writer.write(benchmark.csvRow());
             writer.newLine();
+        }
+    }
+
+    private static String firstLine(File file) throws IOException {
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(
+                new FileInputStream(file), StandardCharsets.UTF_8))) {
+            String line = reader.readLine();
+            return line == null ? "" : line;
         }
     }
 

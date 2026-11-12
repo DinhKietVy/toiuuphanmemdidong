@@ -27,15 +27,12 @@ import com.example.mobitive.benchmark.ScanBenchmark;
 import com.example.mobitive.benchmark.BenchmarkStore;
 import com.example.mobitive.benchmark.ModelBenchmark;
 import com.example.mobitive.benchmark.ModelBenchmarkStore;
-import com.example.mobitive.cache.AnalysisCache;
 import com.example.mobitive.m4.M4ModelCatalog;
-import com.example.mobitive.m4.M4VariantClassifier;
 import com.example.mobitive.m4.M4ScanHistory;
 import com.example.mobitive.m4.M4HistoryActivity;
-import com.example.mobitive.utils.FileUtils;
+import com.example.mobitive.scan.ScanPipeline;
 
 import java.io.File;
-import java.io.InputStream;
 import java.util.Locale;
 import java.util.List;
 import java.util.ArrayList;
@@ -50,7 +47,6 @@ public class MainActivity extends AppCompatActivity {
     private Button btnExportAiCsv;
     private float[] lastFeatureVector;
     private CheckBox cbForceFullScan;
-    private AnalysisCache analysisCache;
     private Spinner m4ModelSpinner;
     private TextView m4Status;
     private List<M4ModelCatalog.Choice> m4Models;
@@ -60,8 +56,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ExecutorService executorService;
 
-    private ApkAnalyzer apkAnalyzer;
-    private MalwareClassifier malwareClassifier;
+    private ScanPipeline scanPipeline;
 
     private ActivityResultLauncher<Intent> apkPickerLauncher;
     private ActivityResultLauncher<String> csvExportLauncher;
@@ -307,149 +302,63 @@ public class MainActivity extends AppCompatActivity {
         tvFileName.setText(fileName);
 
         executorService.execute(() -> {
-            ScanBenchmark benchmark = new ScanBenchmark(fileName);
-            benchmark.setModelInfo(m4Choice.id, m4Choice.threads);
-            File temporaryApk = null;
-            ApkAnalyzer.AnalysisResult analysis = null;
-            MalwareClassifier.Prediction prediction = null;
-            String error = null;
-            boolean saved = false;
-            String apkSha = "";
-            String cacheMode = forceFullScan ? "FORCED" : "MISS";
-            benchmark.samplePssBefore();
-
-            try {
-                // M6: copy and SHA-256 in a single pass. "copy_apk" now includes
-                // hashing; "hash_apk" is intentionally left empty in the CSV.
-                ScanBenchmark.Token copyTiming = benchmark.startStage();
-                temporaryApk = File.createTempFile("mobitive_scan_", ".apk", getCacheDir());
-                FileUtils.CopyResult copied = copyApkToCache(apkUri, temporaryApk);
-                benchmark.endStage("copy_apk", copyTiming);
-                benchmark.setApkBytes(copied.bytes);
-                apkSha = copied.sha256;
-
-                if (analysisCache == null) {
-                    analysisCache = new AnalysisCache(getApplicationContext());
-                }
-
-                if (!forceFullScan) {
-                    ScanBenchmark.Token readTiming = benchmark.startStage();
-                    analysis = analysisCache.load(apkSha);
-                    benchmark.endStage("cache_read", readTiming);
-                    if (analysis != null) cacheMode = "HIT";
-                }
-                benchmark.setCacheInfo(cacheMode, apkSha);
-
-                if (analysis == null) {
-                    if (apkAnalyzer == null) {
-                        ScanBenchmark.Token initAnalyzerTiming = benchmark.startStage();
-                        apkAnalyzer = new ApkAnalyzer(getApplicationContext());
-                        benchmark.endStage("init_analyzer", initAnalyzerTiming);
-                    }
-                    analysis = apkAnalyzer.analyze(temporaryApk, benchmark);
-                }
-                benchmark.samplePssAfterAnalysis();
-                benchmark.setVectorHash(analysis.getFeatureVector());
-
-                if (m4Choice.isBaseline()) {
-                    if (malwareClassifier == null) {
-                        ScanBenchmark.Token initTiming = benchmark.startStage();
-                        malwareClassifier = new MalwareClassifier(getApplicationContext());
-                        benchmark.endStage("init_model", initTiming);
-                    }
-                    ScanBenchmark.Token inferenceTiming = benchmark.startStage();
-                    prediction = malwareClassifier.predict(analysis.getFeatureVector());
-                    benchmark.endStage("inference", inferenceTiming);
-                } else {
-                    ScanBenchmark.Token initTiming = benchmark.startStage();
-                    try (M4VariantClassifier selectedClassifier = new M4VariantClassifier(
-                            getApplicationContext(), m4Choice)) {
-                        benchmark.endStage("init_model", initTiming);
-                        ScanBenchmark.Token inferenceTiming = benchmark.startStage();
-                        prediction = selectedClassifier.predict(analysis.getFeatureVector());
-                        benchmark.endStage("inference", inferenceTiming);
-                    }
-                }
-
-                // Only cache successfully classified analyses; failures here
-                // never invalidate an otherwise correct scan result.
-                if (!"HIT".equals(cacheMode)) {
-                    ScanBenchmark.Token writeTiming = benchmark.startStage();
-                    try {
-                        analysisCache.save(apkSha, analysis);
-                    } catch (Exception cacheError) {
-                        Log.w("MobiTive", "M3 cache write skipped", cacheError);
-                    } finally {
-                        benchmark.endStage("cache_write", writeTiming);
-                    }
-                }
-            } catch (Exception e) {
-                error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-                Log.e("MobiTive", "APK scan failed", e);
-            } finally {
-                if (temporaryApk != null && temporaryApk.exists() && !temporaryApk.delete()) {
-                    Log.w("MobiTive", "Could not delete temporary APK");
-                }
-                benchmark.setCacheInfo(cacheMode, apkSha);
-                benchmark.samplePssAfter();
-                benchmark.finish(error == null ? "OK" : "ERROR", error);
-                if (error == null && prediction != null && analysis != null) {
-                    try {
-                        M4ScanHistory.append(getApplicationContext(), fileName,
-                                m4Choice.id, prediction.getLabel(), cacheMode,
-                                prediction.malwareProbability, benchmark.m4TotalWallMs());
-                    } catch (Exception historyError) {
-                        Log.w("MobiTive", "M4 history write skipped", historyError);
-                    }
-                }
-                try {
-                    BenchmarkStore.append(getApplicationContext(), benchmark);
-                    saved = true;
-                } catch (Exception e) {
-                    Log.e("MobiTive", "Cannot save benchmark CSV", e);
-                }
-
-                final ApkAnalyzer.AnalysisResult shownAnalysis = analysis;
-                final MalwareClassifier.Prediction shownPrediction = prediction;
-                final String shownError = error;
-                final boolean csvSaved = saved;
-                final String m4ShownMode = cacheMode;
-                runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed()) return;
-                    progressBar.setVisibility(View.GONE);
-                    btnSelectApk.setEnabled(true);
-                    cbForceFullScan.setEnabled(true);
-                    m4ModelSpinner.setEnabled(true);
-                    m4Status.setText(shownError == null ?
-                            "Hoàn tất · " + m4ShownMode + " · " + m4Choice.title :
-                            "Lỗi khi quét APK · " + shownError);
-                    btnExportCsv.setEnabled(BenchmarkStore.hasData(this));
-                    if (shownError != null) {
-                        lastFeatureVector = null;
-                        btnAiBenchmark.setEnabled(false);
-                        showError("Phân tích thất bại: " + shownError);
-                    } else {
-                        lastFeatureVector = shownAnalysis.getFeatureVector().clone();
-                        btnAiBenchmark.setEnabled(true);
-                        displayResult(shownAnalysis, shownPrediction, benchmark);
-                        tvResult.setText("MODEL: " + m4Choice.title + "\n" + tvResult.getText());
-                    }
-                    if (!csvSaved) {
-                        Toast.makeText(this, "Không lưu được benchmark CSV", Toast.LENGTH_LONG).show();
-                    }
-                });
+            if (scanPipeline == null) {
+                scanPipeline = new ScanPipeline(getApplicationContext());
             }
-        });
-    }
+            ScanPipeline.Outcome outcome =
+                    scanPipeline.scan(apkUri, fileName, m4Choice, forceFullScan);
+            ScanBenchmark benchmark = outcome.benchmark;
+            ApkAnalyzer.AnalysisResult analysis = outcome.analysis;
+            MalwareClassifier.Prediction prediction = outcome.prediction;
+            String error = outcome.error;
+            String cacheMode = outcome.cacheMode;
+            boolean saved = false;
+            if (error == null && prediction != null && analysis != null) {
+                try {
+                    M4ScanHistory.append(getApplicationContext(), fileName,
+                            m4Choice.id, prediction.getLabel(), cacheMode,
+                            prediction.malwareProbability, benchmark.m4TotalWallMs());
+                } catch (Exception historyError) {
+                    Log.w("MobiTive", "M4 history write skipped", historyError);
+                }
+            }
+            try {
+                BenchmarkStore.append(getApplicationContext(), benchmark);
+                saved = true;
+            } catch (Exception e) {
+                Log.e("MobiTive", "Cannot save benchmark CSV", e);
+            }
 
-    /**
-     * Sao chép APK từ Uri vào {@code outputFile} và tính SHA-256 trong cùng một lượt đọc.
-     * outputFile do caller tạo để khối finally luôn xoá được file tạm, kể cả khi copy lỗi.
-     */
-    private FileUtils.CopyResult copyApkToCache(Uri uri, File outputFile) throws Exception {
-        try (InputStream inputStream = getContentResolver().openInputStream(uri)) {
-            return FileUtils.copyWithSha256(inputStream, outputFile);
-        }
+            final ApkAnalyzer.AnalysisResult shownAnalysis = analysis;
+            final MalwareClassifier.Prediction shownPrediction = prediction;
+            final String shownError = error;
+            final boolean csvSaved = saved;
+            final String m4ShownMode = cacheMode;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                progressBar.setVisibility(View.GONE);
+                btnSelectApk.setEnabled(true);
+                cbForceFullScan.setEnabled(true);
+                m4ModelSpinner.setEnabled(true);
+                m4Status.setText(shownError == null ?
+                        "Hoàn tất · " + m4ShownMode + " · " + m4Choice.title :
+                        "Lỗi khi quét APK · " + shownError);
+                btnExportCsv.setEnabled(BenchmarkStore.hasData(this));
+                if (shownError != null) {
+                    lastFeatureVector = null;
+                    btnAiBenchmark.setEnabled(false);
+                    showError("Phân tích thất bại: " + shownError);
+                } else {
+                    lastFeatureVector = shownAnalysis.getFeatureVector().clone();
+                    btnAiBenchmark.setEnabled(true);
+                    displayResult(shownAnalysis, shownPrediction, benchmark);
+                    tvResult.setText("MODEL: " + m4Choice.title + "\n" + tvResult.getText());
+                }
+                if (!csvSaved) {
+                    Toast.makeText(this, "Không lưu được benchmark CSV", Toast.LENGTH_LONG).show();
+                }
+            });
+        });
     }
 
     /**
@@ -579,9 +488,9 @@ public class MainActivity extends AppCompatActivity {
             // Close the interpreter on the same serial worker AFTER any active scan.
             // Avoid closing it concurrently with interpreter.run().
             executorService.execute(() -> {
-                if (malwareClassifier != null) {
-                    malwareClassifier.close();
-                    malwareClassifier = null;
+                if (scanPipeline != null) {
+                    scanPipeline.close();
+                    scanPipeline = null;
                 }
             });
             executorService.shutdown();
