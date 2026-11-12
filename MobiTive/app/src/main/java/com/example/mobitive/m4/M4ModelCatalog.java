@@ -25,7 +25,7 @@ public final class M4ModelCatalog {
     }
 
     private static final Choice[] ALL = {
-            new Choice("gru128_fp32", "GRU-128 FP32 · Baseline", "mobitive_gru.tflite", 4),
+            new Choice("gru128_fp32", "GRU-128 FP32 · Baseline", "mobitive_gru.tflite", 1),
             new Choice("gru128_fp16", "GRU-128 FP16 · Smaller", "mobitive_gru_fp16.tflite", 1),
             new Choice("gru128_dynamic", "GRU-128 Dynamic · Quantized", "mobitive_gru_dynamic_range.tflite", 1),
             new Choice("gru64_fp32", "GRU-64 FP32 · Compact", "mobitive_gru64_float32.tflite", 1),

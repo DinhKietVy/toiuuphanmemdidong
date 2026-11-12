@@ -1,5 +1,5 @@
 """
-M7 — đo MobiTive trên điện thoại thật bằng 1 lệnh.
+M7/M8 — đo MobiTive trên điện thoại thật bằng 1 lệnh.
 
 Làm lần lượt cho từng máy đang cắm USB (hoặc --serial):
   1. build app + test APK (bỏ qua bằng --skip-build)
@@ -7,7 +7,7 @@ Làm lần lượt cho từng máy đang cắm USB (hoặc --serial):
   3. đẩy bộ APK benchmark (MobiTiveAI/data/bench_apks) lên
      /sdcard/Android/data/com.example.mobitive/files/bench/  (chỉ đẩy file thay đổi)
   4. giữ màn hình sáng khi cắm USB, ghi trạng thái pin trước/sau
-  5. chạy DeviceScanBenchmark (instrumentation) và in tiến độ
+  5. chạy DeviceScanBenchmark (quét APK) + AccelBenchmark (quantization × CPU/GPU/NNAPI)
   6. kéo CSV/JSON + logcat về MobiTive/device_results/<máy>/<runId>/
 
 Usage (PowerShell, tại thư mục MobiTive):
@@ -37,7 +37,8 @@ RESULTS_ROOT = PROJECT / "device_results"
 APP_ID = "com.example.mobitive"
 TEST_ID = APP_ID + ".test"
 RUNNER = TEST_ID + "/androidx.test.runner.AndroidJUnitRunner"
-TEST_CLASS = APP_ID + ".DeviceScanBenchmark"
+SCAN_CLASS = APP_ID + ".DeviceScanBenchmark"
+ACCEL_CLASS = APP_ID + ".AccelBenchmark"
 REMOTE_BASE = f"/sdcard/Android/data/{APP_ID}/files"
 APP_APK = PROJECT / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
 TEST_APK = PROJECT / "app" / "build" / "outputs" / "apk" / "androidTest" / "debug" / "app-debug-androidTest.apk"
@@ -159,10 +160,14 @@ def run_benchmark(dev, args, run_id):
     extra = ["-e", "repeats", str(args.repeats), "-e", "warmup", str(args.warmup),
              "-e", "hitRepeats", str(args.hit_repeats), "-e", "models", args.models,
              "-e", "cooldownMs", str(args.cooldown_ms),
-             "-e", "modelBench", "false" if args.no_model_bench else "true",
+             "-e", "modelBench", "true" if args.model_bench else "false",
+             "-e", "backends", args.backends, "-e", "accelPasses", str(args.accel_passes),
              "-e", "runId", run_id]
+    classes = [c for c, on in ((SCAN_CLASS, not args.no_scan), (ACCEL_CLASS, not args.no_accel)) if on]
+    if not classes:
+        sys.exit("--no-scan và --no-accel cùng lúc thì không còn gì để đo.")
     cmd = [dev.adb, "-s", dev.serial, "shell", "am", "instrument", "-w", "-r",
-           *extra, "-e", "class", TEST_CLASS, RUNNER]
+           *extra, "-e", "class", ",".join(classes), RUNNER]
     print("==> Chạy benchmark (có thể mất vài phút, đừng rút cáp) ...")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             text=True, encoding="utf-8", errors="replace")
@@ -183,7 +188,7 @@ def run_benchmark(dev, args, run_id):
             print("    " + line.rstrip())
     proc.wait()
     output = "".join(transcript)
-    ok = "OK (1 test)" in output
+    ok = re.search(r"^OK \(\d+ tests?\)", output, re.MULTILINE) is not None and "FAILURES!!!" not in output
     return ok, output
 
 
@@ -192,7 +197,7 @@ def pull_results(dev, run_id, transcript):
     out_dir.mkdir(parents=True, exist_ok=True)
     dev.cmd("pull", f"{REMOTE_BASE}/results/.", str(out_dir))
     (out_dir / "instrumentation_output.txt").write_text(transcript, encoding="utf-8")
-    log = dev.cmd("logcat", "-d", "-s", "MobiTiveHarness:I", "MobiTiveDexProfile:I", check=False)
+    log = dev.cmd("logcat", "-d", "-s", "MobiTiveHarness:I", "MobiTiveDexProfile:I", "MobiTiveAccel:I", "tflite:*", check=False)
     (out_dir / "logcat.txt").write_text(log, encoding="utf-8")
     return out_dir
 
@@ -216,7 +221,14 @@ def main():
     parser.add_argument("--models", default="gru128_fp32",
                         help="gru128_fp32,mlp64_fp32,... hoặc 'all'")
     parser.add_argument("--cooldown-ms", type=int, default=1000)
-    parser.add_argument("--no-model-bench", action="store_true")
+    parser.add_argument("--model-bench", action="store_true",
+                        help="chạy thêm AI benchmark cũ của nút trong app (đã có AccelBenchmark thay thế)")
+    parser.add_argument("--no-scan", action="store_true", help="bỏ phần quét APK (M7)")
+    parser.add_argument("--no-accel", action="store_true", help="bỏ phần quantization × backend (M8)")
+    parser.add_argument("--backends", default="all",
+                        help="cpu1,cpu2,cpu4,cpu1_noxnnpack,gpu_fp32,gpu_fp16,nnapi hoặc 'all'")
+    parser.add_argument("--accel-passes", type=int, default=3,
+                        help="số lượt chạy hết 112 mẫu test cho mỗi cặp model × backend")
     parser.add_argument("--skip-build", action="store_true")
     args = parser.parse_args()
 

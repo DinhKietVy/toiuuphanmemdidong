@@ -1,4 +1,4 @@
-# Đo MobiTive trên điện thoại thật (M7)
+# Đo MobiTive trên điện thoại thật (M7 + M8)
 
 Mỗi thành viên dùng **điện thoại của mình**, không cần máy ảo. Một lần đo mất khoảng 5–15 phút.
 
@@ -22,10 +22,12 @@ Mỗi thành viên dùng **điện thoại của mình**, không cần máy ảo
 cd MobiTive
 python tools\run_device_benchmark.py
 ```
-- Lệnh này tự build, cài app và test APK, đẩy APK lên máy, quét 18 APK × 5 lần (FORCED), quét thêm 3 lần qua cache, chạy AI benchmark 5 model × 1/2/4 luồng, rồi kéo kết quả về `MobiTive/device_results/<tên máy>/<thời điểm>/`.
+- Lệnh này tự build, cài app và test APK, đẩy APK lên máy, rồi đo 2 phần và kéo kết quả về `MobiTive/device_results/<tên máy>/<thời điểm>/`:
+  - **M7, quét APK:** 18 APK × 5 lần (FORCED), cộng 3 lần qua cache.
+  - **M8, quantization × phần cứng (paper 2):** 12 model (GRU-128, GRU-64, MLP-64 × FP32/FP16/DYNAMIC/INT8) × 7 backend (CPU 1/2/4 luồng, CPU không XNNPACK, GPU FP32/FP16, NNAPI). Mỗi cặp đo init, p50/p95 và **accuracy/F1 ngay trên máy** với 112 mẫu test, kèm mức khớp với kết quả desktop.
 - **Đừng rút cáp và đừng dùng điện thoại** trong lúc đo.
 - Nếu có nhiều máy cắm cùng lúc, script đo lần lượt từng máy. Muốn chọn 1 máy thì thêm `--serial <mã máy>`.
-- Tuỳ chọn khác: `--repeats 10` để lặp nhiều hơn, `--models all` để quét bằng cả 5 model, `--skip-build` nếu đã build rồi.
+- Tuỳ chọn khác: `--repeats 10` để lặp nhiều hơn, `--models all` để quét bằng cả 5 model, `--skip-build` nếu đã build rồi, `--no-scan` hoặc `--no-accel` để chỉ chạy một phần, `--backends cpu1,gpu_fp16` để chọn backend.
 
 ## Gộp kết quả và vẽ biểu đồ
 Gom thư mục `device_results/` của mọi người vào chung một chỗ (hoặc commit lên git), rồi chạy:
@@ -37,7 +39,7 @@ python scripts\analyze_device_benchmarks.py
 Kết quả gồm:
 - `reports/device_info.csv`: bảng cấu hình các máy.
 - `reports/device_scan_summary.csv`: median và IQR theo máy × nhóm dung lượng.
-- `reports/device_model_summary.csv`: thời gian inference theo số luồng.
+- `reports/device_accel_summary.csv`: p50, init, accuracy và tốc độ so với CPU-1 FP32 cho từng máy × model × backend (giống Table V–X của paper 2).
 - `reports/figures/*.png`: biểu đồ cho báo cáo.
 
 ## Lưu ý phương pháp (ghi vào báo cáo)
@@ -45,6 +47,8 @@ Kết quả gồm:
 - Lần quét warm-up đầu tiên (`iteration < 0`) được ghi lại để phân tích khởi động lạnh, nhưng **không** tính vào median.
 - Mỗi dòng CSV có trạng thái nhiệt (`thermal_status`, > 0 nghĩa là máy đang bị giảm xung), số lần và thời gian GC, SoC và RAM của máy.
 - Số liệu từ máy ảo bị script cảnh báo và không nên đưa vào báo cáo.
+- GPU/NNAPI trả về `SKIP`/`ERROR` khi máy không hỗ trợ, đó **là kết quả** cần ghi lại, không phải lỗi. Ví dụ: GRU không chạy được qua NNAPI.
+- Model và tập test cho M8 do `MobiTiveAI/scripts/export_model_variants.py` sinh ra (cần TensorFlow 2.15.1) và nằm trong test APK, nên app sản phẩm không nặng thêm.
 
 ## Lỗi thường gặp
 | Lỗi | Cách xử lý |

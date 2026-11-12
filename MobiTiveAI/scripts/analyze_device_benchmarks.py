@@ -11,6 +11,9 @@ bảng + biểu đồ cho báo cáo.
     reports/figures/device_total_vs_size.png
     reports/figures/device_stage_breakdown.png
     reports/figures/device_threads.png
+    reports/device_accel_summary.csv      (M8) máy × model × quantization × backend:
+                                          p50/p95, init, accuracy/F1 trên máy, speed-up so với CPU-1 FP32
+    reports/figures/accel_<máy>.png       (M8) p50 theo backend, nhóm theo quantization
 
 Chỉ tính các dòng status=OK, source=harness, iteration >= 0 (bỏ warm-up).
 Usage:
@@ -96,7 +99,11 @@ def load(results_dir):
     for path in sorted(results_dir.rglob("model_*.csv")):
         with open(path, encoding="utf-8-sig") as f:
             models.extend(r for r in csv.DictReader(f) if r.get("status") == "OK")
-    return scans, models, devices
+    accel = []
+    for path in sorted(results_dir.rglob("accel_*.csv")):
+        with open(path, encoding="utf-8-sig") as f:
+            accel.extend(csv.DictReader(f))
+    return scans, models, devices, accel
 
 
 def write_csv(path, rows):
@@ -265,6 +272,120 @@ def plot(summary, model_summary):
     print(f"Saved figures: {FIGURES}")
 
 
+# ------------------------------------------------------------------ M8 accel
+
+BACKENDS = ["cpu1", "cpu2", "cpu4", "cpu1_noxnnpack", "gpu_fp32", "gpu_fp16", "nnapi"]
+QUANTS = ["fp32", "fp16", "dynamic", "int8"]
+
+
+def summarize_accel(rows):
+    groups = defaultdict(list)
+    for r in rows:
+        groups[(r["device"], r["variant"], r["backend"])].append(r)
+    base = {}  # (device, arch) -> p50 of cpu1 fp32, the paper-2 baseline
+    for (dev, variant, backend), rs in groups.items():
+        ok = [r for r in rs if r["status"] == "OK"]
+        if ok and backend == "cpu1" and ok[0]["quant"] == "fp32":
+            base[(dev, ok[0]["arch"])] = statistics.median(float(r["p50_ms"]) for r in ok)
+    out = []
+    for (dev, variant, backend), rs in sorted(groups.items()):
+        ok = [r for r in rs if r["status"] == "OK"]
+        first = rs[0]
+        rec = {"device": dev, "variant": variant, "arch": first["arch"], "quant": first["quant"],
+               "backend": backend, "runs": len(rs), "status": "OK" if ok else first["status"],
+               "error": "" if ok else first.get("error", "")}
+        if ok:
+            med = lambda k: statistics.median(float(r[k]) for r in ok if r.get(k) not in ("", None))
+            p50 = med("p50_ms")
+            b = base.get((dev, first["arch"]))
+            rec.update({"model_bytes": first["model_bytes"], "init_ms": round(med("init_ms"), 2),
+                        "p50_ms": round(p50, 4), "p95_ms": round(med("p95_ms"), 4),
+                        "speedup_vs_cpu1_fp32": round(b / p50, 2) if b and p50 else "",
+                        "accuracy": round(med("accuracy"), 4), "f1": round(med("f1"), 4),
+                        "fn": ok[0]["fn"], "fp": ok[0]["fp"],
+                        "agreement_with_desktop": ok[0]["agreement_with_desktop"],
+                        "max_prob_delta_vs_desktop": ok[0]["max_prob_delta_vs_desktop"],
+                        "max_thermal_status": max(int(r["thermal_status"] or -1) for r in ok)})
+        out.append(rec)
+    return out
+
+
+def print_accel(summary):
+    for dev in sorted({r["device"] for r in summary}):
+        print(f"\n[{dev}] inference p50 (ms) — hàng: model, cột: backend  (x = lỗi/không hỗ trợ)")
+        print(f"{'':22s}" + "".join(f"{b:>15s}" for b in BACKENDS))
+        for variant in sorted({r["variant"] for r in summary if r["device"] == dev}):
+            cells = {r["backend"]: r for r in summary if r["device"] == dev and r["variant"] == variant}
+            line = f"{variant.replace('mobitive_', ''):22s}"
+            for b in BACKENDS:
+                r = cells.get(b)
+                if r is None:
+                    cell = "-"
+                elif r["status"] == "OK":
+                    cell = f"{r['p50_ms']:.3f}"
+                else:
+                    cell = "x"
+                line += f"{cell:>15s}"
+            print(line)
+        bad = [r for r in summary if r["device"] == dev and r["status"] == "OK"
+               and r["agreement_with_desktop"] not in ("", None) and float(r["agreement_with_desktop"]) < 1]
+        accs = sorted({r["accuracy"] for r in summary if r["device"] == dev and r["status"] == "OK"})
+        print(f"  accuracy trên máy: {accs}")
+        for r in bad:
+            print(f"  LỆCH so với desktop: {r['variant']} {r['backend']} agreement={r['agreement_with_desktop']}")
+
+
+def plot_accel(summary):
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        return
+    FIGURES.mkdir(parents=True, exist_ok=True)
+    for dev in sorted({r["device"] for r in summary}):
+        rows = [r for r in summary if r["device"] == dev and r["status"] == "OK"]
+        archs = [a for a in ("gru128", "gru64", "mlp64") if any(r["arch"] == a for r in rows)]
+        backends = [b for b in BACKENDS if any(r["backend"] == b for r in rows)]
+        if not archs or not backends:
+            continue
+        fig, axes = plt.subplots(len(archs), 1, figsize=(8, 2.6 * len(archs)), facecolor=SURFACE,
+                                 squeeze=False)
+        width = 0.8 / len(QUANTS)
+        for k, arch in enumerate(archs):
+            ax = axes[k][0]
+            style_axes(ax)
+            for j, quant in enumerate(QUANTS):
+                xs, ys = [], []
+                for i, b in enumerate(backends):
+                    hit = [r for r in rows if r["arch"] == arch and r["quant"] == quant and r["backend"] == b]
+                    if hit:
+                        xs.append(i - 0.4 + width * (j + 0.5))
+                        ys.append(hit[0]["p50_ms"])
+                ax.bar(xs, ys, width=width, color=SERIES[j], edgecolor=SURFACE, linewidth=2,
+                       label=quant.upper() if k == 0 else None)
+            # Mark backend slots where this architecture failed / was unsupported,
+            # so an empty slot is never read as "0 ms".
+            for i, b in enumerate(backends):
+                if not any(r["arch"] == arch and r["backend"] == b for r in rows):
+                    ax.text(i, 0, "không chạy\nđược", ha="center", va="bottom",
+                            fontsize=7, color=TEXT_SECONDARY)
+            ax.set_xticks(range(len(backends)))
+            ax.set_xticklabels(backends if k == len(archs) - 1 else [""] * len(backends),
+                               color=TEXT_PRIMARY, fontsize=8)
+            ax.set_ylabel(f"{arch}\np50 (ms)", color=TEXT_SECONDARY, fontsize=9)
+            ax.set_ylim(bottom=0)
+        axes[0][0].legend(frameon=False, ncol=len(QUANTS), fontsize=8, loc="upper left",
+                          labelcolor=TEXT_PRIMARY)
+        fig.suptitle(f"Inference p50 theo backend và quantization — {dev}", x=0.01, ha="left",
+                     color=TEXT_PRIMARY, fontsize=11)
+        fig.tight_layout()
+        name = re.sub(r"[^A-Za-z0-9]+", "_", dev)
+        fig.savefig(FIGURES / f"accel_{name}.png", dpi=200)
+        plt.close(fig)
+    print(f"Saved accel figures: {FIGURES}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--results", type=Path, default=DEFAULT_RESULTS)
@@ -272,10 +393,16 @@ def main():
     if not args.results.exists():
         sys.exit(f"Không thấy {args.results}. Chạy MobiTive/tools/run_device_benchmark.py trước.")
 
-    scans, models, devices = load(args.results)
-    print(f"{len(devices)} lần chạy, {len(scans)} dòng scan hợp lệ, {len(models)} dòng model.")
+    scans, models, devices, accel = load(args.results)
+    print(f"{len(devices)} lần chạy, {len(scans)} dòng scan hợp lệ, {len(models)} dòng model, "
+          f"{len(accel)} dòng accel.")
+    if accel:
+        accel_summary = summarize_accel(accel)
+        write_csv(REPORTS / "device_accel_summary.csv", accel_summary)
+        print_accel(accel_summary)
+        plot_accel(accel_summary)
     if not scans:
-        sys.exit("Không có dữ liệu scan hợp lệ.")
+        sys.exit("Không có dữ liệu scan hợp lệ." if not accel else 0)
 
     write_csv(REPORTS / "device_info.csv", [
         {k: (",".join(map(str, v)) if isinstance(v, list) else v) for k, v in d.items()} for d in devices])

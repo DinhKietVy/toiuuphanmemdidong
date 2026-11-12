@@ -52,6 +52,9 @@ dependencies {
     implementation(libs.appcompat)
     implementation(libs.material)
     testImplementation(libs.junit)
+    // M8: GPU delegate only in the TEST APK (AccelBenchmark); the shipped app stays CPU-only.
+    androidTestImplementation("org.tensorflow:tensorflow-lite-gpu:2.16.1")
+    androidTestImplementation("org.tensorflow:tensorflow-lite-gpu-api:2.16.1")
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.ext.junit)
 }

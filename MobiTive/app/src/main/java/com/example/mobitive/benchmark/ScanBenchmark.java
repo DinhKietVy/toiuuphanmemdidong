@@ -18,8 +18,8 @@ import java.util.Map;
  */
 public final class ScanBenchmark {
 
-    /** Pipeline version written to every CSV row (M7 = method_ids DEX + 1-pass copy/hash). */
-    public static final String APP_VERSION = "M7";
+    /** Pipeline version written to every CSV row (M8 = method_ids DEX + 1-pass copy/hash + 1 TFLite thread). */
+    public static final String APP_VERSION = "M8";
 
     private static final String[] STAGES = {
             "copy_apk", "hash_apk", "cache_read", "cache_write", "init_analyzer", "manifest", "dex",
@@ -38,7 +38,7 @@ public final class ScanBenchmark {
     private String apkSha256 = "";
     private long pssAfterAnalysisKb = -1;
     private String m4ModelId = "gru128_fp32";
-    private int m4Threads = 4;
+    private int m4Threads = 1;
     private long apkBytes;
     private String vectorSha256 = "";
     private String vectorBits = "";
