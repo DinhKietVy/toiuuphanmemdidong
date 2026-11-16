@@ -54,6 +54,15 @@ cleanup_kprobes() {
     done
 }
 
+# Engine (libbpf, kprobe kiểu legacy) tạo kprobe qua /sys/kernel/debug/tracing/kprobe_events.
+# Sau cold boot, máy ảo chỉ mount tracefs ở /sys/kernel/tracing, debugfs chưa có
+# -> engine báo "failed to open kprobe_events file: -2". Mount debugfs nếu thiếu.
+ensure_debugfs() {
+    [ -e /sys/kernel/debug/tracing/kprobe_events ] && return 0
+    mount -t debugfs debugfs /sys/kernel/debug 2>/dev/null
+    [ -e /sys/kernel/debug/tracing/kprobe_events ]
+}
+
 stop_engine() {
     PID=$(engine_pid)
     if [ -n "$PID" ]; then
@@ -85,6 +94,10 @@ case "$CMD" in
         if [ -n "$PID" ]; then
             echo "OK:RUNNING:$PID"
             exit 0
+        fi
+        if ! ensure_debugfs; then
+            echo "ERROR:DEBUGFS_UNAVAILABLE"
+            exit 1
         fi
         cleanup_kprobes
         cd "$BASE" || { echo "ERROR:ENGINE_NOT_STARTED"; exit 1; }

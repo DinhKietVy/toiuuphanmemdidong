@@ -132,6 +132,22 @@ các lệnh bên dưới.
 
 Mở **Windows PowerShell**.
 
+**Cách nhanh (khuyên dùng):** chạy một lệnh từ thư mục gốc repo. Script
+tự chọn đúng máy ảo `Pixel_6` (bật nếu chưa chạy), `adb root`, đồng bộ
+bridge handler từ repo, bật bridge listener và START engine. Chạy lại
+nhiều lần không sao.
+
+``` powershell
+powershell -ExecutionPolicy Bypass -File BPFroidDashboard\bridge\start-demo.ps1
+```
+
+Cần làm lại sau **mỗi lần bật/khởi động lại máy ảo**: quyền root của
+adb, bridge listener và engine đều là trạng thái tạm, mất khi tắt máy.
+Engine chỉ được cài trên máy ảo **`Pixel_6`**; bật nhầm máy khác (ví dụ
+`Medium_Phone_API_37.0`) thì Dashboard sẽ không kết nối được.
+
+Các bước thủ công dưới đây tương đương với script.
+
 ### Bước 1 -- Kiểm tra ADB và emulator
 
 ``` powershell
@@ -559,6 +575,12 @@ Kết quả mong đợi: `STOPPED`.
   `ERROR:UNAUTHORIZED`                token thì mở app Dashboard một lần.
                                       Cài lại app (xóa dữ liệu) sẽ tạo
                                       token mới: đọc lại `$TOKEN`.
+
+  Log engine báo `failed to open      Máy ảo cold boot nên chưa mount
+  kprobe_events file: -2`             debugfs. Bridge handler bản mới tự
+                                      mount khi START; với bản cũ chạy
+                                      `adb shell "mount -t debugfs debugfs
+                                      /sys/kernel/debug"` rồi START lại.
 
   START trả                           Xem
   `ERROR:ENGINE_NOT_STARTED`          `/data/local/tmp/bpfroid-engine.log`;
